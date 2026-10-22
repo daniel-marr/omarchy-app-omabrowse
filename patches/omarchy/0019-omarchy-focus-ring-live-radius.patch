@@ -1,0 +1,37 @@
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -218,6 +218,20 @@
+   return !web_app::AppBrowserController::IsWebApp(browser) &&
+          browser->GetType() != BrowserWindowInterface::Type::TYPE_DEVTOOLS;
+ }
++// Draws the focus ring with the location bar's current corner radius.
++class LocationBarHighlightPathGenerator : public views::HighlightPathGenerator {
++ public:
++  explicit LocationBarHighlightPathGenerator(const LocationBarView* view)
++      : view_(view) {}
++
++  std::optional<gfx::RRectF> GetRoundRect(const gfx::RectF& rect) override {
++    return gfx::RRectF(rect, view_->GetBorderRadius());
++  }
++
++ private:
++  raw_ptr<const LocationBarView> view_;
++};
++
+ }  // namespace
+ 
+ using content::WebContents;
+@@ -275,9 +289,10 @@
+         }));
+     views::FocusRing::Get(this)->SetOutsetFocusRingDisabled(true);
+ 
+-    // Same radius as the location bar.
+-    views::InstallRoundRectHighlightPathGenerator(
+-        this, gfx::Insets(), GetBorderRadius());
++    // Reads the radius each time the focus ring is drawn, so the Rounded
++    // corners setting applies even when it changed after this view was built.
++    views::HighlightPathGenerator::Install(
++        this, std::make_unique<LocationBarHighlightPathGenerator>(this));
+ 
+ #if BUILDFLAG(OS_LEVEL_GEOLOCATION_PERMISSION_SUPPORTED)
+     if (features::IsOsLevelGeolocationPermissionSupportEnabled()) {
