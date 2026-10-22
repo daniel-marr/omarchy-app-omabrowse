@@ -25,3 +25,5 @@ omarchy/0017-omarchy-switch-controls-all-corners.patch
 omarchy/0018-omarchy-square-settings-and-toolbar.patch
 omarchy/0019-omarchy-focus-ring-live-radius.patch
 omarchy/0021-omarchy-toolbar-icons-accent.patch
+omarchy/0022-omarchy-square-hard-coded-radii.patch
+omarchy/0023-omarchy-outline-radius-cast.patch

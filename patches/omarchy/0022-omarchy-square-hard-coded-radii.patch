@@ -1,0 +1,124 @@
+--- a/chrome/browser/ui/views/frame/contents_container_outline.h
++++ b/chrome/browser/ui/views/frame/contents_container_outline.h
+@@ -7,6 +7,7 @@
+ 
+ #include "base/memory/raw_ptr.h"
+ #include "base/scoped_observation.h"
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "ui/gfx/geometry/rounded_corners_f.h"
+ #include "ui/views/view.h"
+@@ -51,7 +52,7 @@
+ 
+   bool is_highlighted_ = false;
+   ui::ColorId stroke_color_ = kColorMultiContentsViewInactiveContentOutline;
+-  gfx::RoundedCornersF corner_radii_{kCornerRadius};
++  gfx::RoundedCornersF corner_radii_{omarchy::ScaledCornerRadius(kCornerRadius)};
+   base::ScopedObservation<views::View, views::ViewObserver>
+       view_bounds_observer_{this};
+ };
+--- a/chrome/browser/ui/views/frame/contents_capture_border_view.cc
++++ b/chrome/browser/ui/views/frame/contents_capture_border_view.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/views/frame/contents_capture_border_view.h"
+ 
+ #include "chrome/browser/ui/browser_element_identifiers.h"
+@@ -20,7 +21,8 @@
+ 
+ ContentsCaptureBorderView::ContentsCaptureBorderView(
+     views::View* /*mini_toolbar*/)
+-    : corner_radii_(ContentsContainerOutline::kCornerRadius) {
++    : corner_radii_(omarchy::ScaledCornerRadius(
++          ContentsContainerOutline::kCornerRadius)) {
+   SetPaintToLayer();
+   layer()->SetFillsBoundsOpaquely(false);
+   layer()->SetOpacity(0.50f);
+--- a/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
++++ b/chrome/browser/ui/views/tabs/tab/tab_close_button.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/views/tabs/tab/tab_close_button.h"
+ 
+ #include <memory>
+@@ -80,7 +81,7 @@
+   // focus rings.
+ 
+   auto ink_drop_highlight_path =
+-      std::make_unique<views::RoundRectHighlightPathGenerator>(kInkDropInsets, kCornerRadius);
++      std::make_unique<views::RoundRectHighlightPathGenerator>(kInkDropInsets, omarchy::ScaledCornerRadius(kCornerRadius));
+   ink_drop_highlight_path->set_use_contents_bounds(true);
+   ink_drop_highlight_path->set_use_mirrored_rect(true);
+   views::HighlightPathGenerator::Install(this,
+@@ -90,7 +91,7 @@
+   // TODO(http://crbug.com/40120351): Once this bug is solved and explicit
+   // mirroring for ink drops is not needed, we can combine these two.
+   auto ring_highlight_path =
+-      std::make_unique<views::RoundRectHighlightPathGenerator>(kInkDropInsets, kCornerRadius);
++      std::make_unique<views::RoundRectHighlightPathGenerator>(kInkDropInsets, omarchy::ScaledCornerRadius(kCornerRadius));
+   ring_highlight_path->set_use_contents_bounds(true);
+   views::FocusRing::Get(this)->SetPathGenerator(std::move(ring_highlight_path));
+ 
+--- a/chrome/browser/ui/views/tabs/glic/glic_and_actor_buttons_container.cc
++++ b/chrome/browser/ui/views/tabs/glic/glic_and_actor_buttons_container.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/views/tabs/glic/glic_and_actor_buttons_container.h"
+ 
+ #include "base/feature_list.h"
+@@ -82,7 +83,7 @@
+ 
+ void GlicAndActorButtonsContainer::SetBackgroundColor(ui::ColorId color_id) {
+   SetBackground(views::CreateRoundedRectBackground(
+-      color_id, gfx::RoundedCornersF(kCornerRadius), gfx::Insets::VH(4, 8)));
++      color_id, gfx::RoundedCornersF(omarchy::ScaledCornerRadius(kCornerRadius)), gfx::Insets::VH(4, 8)));
+   UpdateInkDrop();
+ }
+ 
+@@ -118,7 +119,7 @@
+         const float hover_alpha = SkColorGetA(hover_color);
+ 
+         auto ink_drop_highlight = std::make_unique<views::InkDropHighlight>(
+-            ink_drop_container_view->size(), kCornerRadius,
++            ink_drop_container_view->size(), omarchy::ScaledCornerRadius(kCornerRadius),
+             gfx::RectF(ink_drop_container_view->GetLocalBounds()).CenterPoint(),
+             SkColorSetA(hover_color, SK_AlphaOPAQUE));
+ 
+--- a/chrome/browser/ui/views/tabs/common/tab_group_style.cc
++++ b/chrome/browser/ui/views/tabs/common/tab_group_style.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/views/tabs/common/tab_group_style.h"
+ 
+ #include <optional>
+@@ -31,7 +32,7 @@
+ // static
+ int TabGroupStyle::GetChipCornerRadius(TabStripOrientation orientation) {
+   return orientation == TabStripOrientation::kHorizontal
+-             ? kCornerRadius
++             ? omarchy::ScaledCornerRadius(kCornerRadius)
+              : kVerticalCornerRadius;
+ }
+ 
+@@ -52,7 +53,8 @@
+ gfx::Insets TabGroupStyle::GetInsetsForHeaderChip(
+     TabStripOrientation orientation) {
+   return orientation == TabStripOrientation::kHorizontal
+-             ? gfx::Insets::VH(kHeaderChipVerticalInset, kCornerRadius)
++             ? gfx::Insets::VH(kHeaderChipVerticalInset,
++                                          omarchy::ScaledCornerRadius(kCornerRadius))
+              : gfx::Insets::VH(0, kVerticalHeaderChipHorizontalInset);
+ }
+ 

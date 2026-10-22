@@ -1,0 +1,12 @@
+--- a/chrome/browser/ui/views/frame/contents_container_outline.h
++++ b/chrome/browser/ui/views/frame/contents_container_outline.h
+@@ -52,7 +52,8 @@
+ 
+   bool is_highlighted_ = false;
+   ui::ColorId stroke_color_ = kColorMultiContentsViewInactiveContentOutline;
+-  gfx::RoundedCornersF corner_radii_{omarchy::ScaledCornerRadius(kCornerRadius)};
++  gfx::RoundedCornersF corner_radii_{
++      static_cast<float>(omarchy::ScaledCornerRadius(kCornerRadius))};
+   base::ScopedObservation<views::View, views::ViewObserver>
+       view_bounds_observer_{this};
+ };
