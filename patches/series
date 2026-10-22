@@ -8,3 +8,4 @@ helium/linux/add-error-for-missing-desktop-file.patch
 helium/linux/disable-tab-strokes.patch
 omarchy/0001-omarchy-theme-reader.patch
 omarchy/0002-omarchy-live-reload.patch
+omarchy/0003-omarchy-theme-supplier.patch
