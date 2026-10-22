@@ -1,0 +1,266 @@
+--- a/chrome/browser/omarchy/omarchy_theme.h
++++ b/chrome/browser/omarchy/omarchy_theme.h
+@@ -9,13 +9,17 @@
+ 
+ #include "base/files/file_path.h"
+ #include "base/functional/callback.h"
+-#include "base/memory/raw_ptr.h"
+ #include "base/memory/weak_ptr.h"
+ #include "base/observer_list.h"
+ #include "base/observer_list_types.h"
++#include "base/task/sequenced_task_runner.h"
++#include "base/threading/sequence_bound.h"
++#include "base/timer/timer.h"
+ #include "chrome/browser/omarchy/omarchy_theme_parse.h"
+ 
+ namespace omarchy {
++
++class ThemeWatch;
+ 
+ // The active Omarchy theme as Helium sees it: its palette and corner radius.
+ // Reads files from Omarchy's state and config directories. Nothing is written
+@@ -30,13 +34,15 @@
+ 
+   // Paths are injectable for tests. Use the defaults in production.
+   struct Paths {
+-    base::FilePath theme_dir;     // ~/.local/state/omarchy/current/theme
++    base::FilePath current_dir;   // ~/.local/state/omarchy/current
++    base::FilePath theme_dir;     // current_dir/theme
+     base::FilePath theme_lua;     // theme_dir/hyprland.lua
+     base::FilePath user_lua;      // ~/.config/hypr/looknfeel.lua
+     static Paths ForHome(const base::FilePath& home);
+   };
+ 
+   // Shared instance for the browser process, using the real home directory.
++  // The first call starts watching the theme files. Call it on the UI thread.
+   static OmarchyTheme* GetInstance();
+ 
+   // Test constructor. Does not read anything until Reload() is called.
+@@ -49,8 +55,14 @@
+   void RemoveObserver(Observer* observer);
+ 
+   // Re-reads the files on a background task. Observers are notified on the UI
+-  // thread when the result differs from the current state.
++  // thread when the result differs from the current state. Call on the UI
++  // thread.
+   void Reload();
++
++  // Watches the current theme directory and the user's looknfeel.lua. A change
++  // schedules a Reload() after a short quiet period, so one theme switch, which
++  // touches several files, reloads once. Call on the UI thread.
++  void StartWatching();
+ 
+   // True once a colours file has parsed. Until then Helium behaves like stock.
+   bool has_theme() const { return has_theme_; }
+@@ -66,12 +78,19 @@
+ 
+   static Loaded ReadFromDisk(Paths paths);
+   void OnLoaded(Loaded loaded);
++  void OnWatchEvent(bool error);
+ 
+   Paths paths_;
+   bool has_theme_ = false;
+   ThemeColors colors_;
+   int radius_ = 0;
+   base::ObserverList<Observer> observers_;
++
++  // Watchers run on their own sequence. They report back to the UI thread.
++  base::SequenceBound<ThemeWatch> theme_watch_;
++  base::SequenceBound<ThemeWatch> user_watch_;
++  base::OneShotTimer debounce_timer_;
++
+   base::WeakPtrFactory<OmarchyTheme> weak_factory_{this};
+ };
+ 
+--- a/chrome/browser/omarchy/omarchy_theme.cc
++++ b/chrome/browser/omarchy/omarchy_theme.cc
+@@ -6,15 +6,21 @@
+ 
+ #include <utility>
+ 
++#include "base/base_paths.h"
++#include "base/files/file_path_watcher.h"
+ #include "base/files/file_util.h"
+ #include "base/logging.h"
+ #include "base/no_destructor.h"
+ #include "base/path_service.h"
+-#include "base/base_paths.h"
+ #include "base/task/thread_pool.h"
++#include "base/time/time.h"
+ 
+ namespace omarchy {
+ namespace {
++
++// How long to wait after the last change before reloading. A theme switch
++// removes and renames several files, so this collapses them into one reload.
++constexpr base::TimeDelta kReloadDebounce = base::Milliseconds(200);
+ 
+ // Omarchy's own file, read the same way as helium-theme-gen. The file is
+ // missing on machines without Omarchy, so a read failure is not an error.
+@@ -28,10 +34,36 @@
+ 
+ }  // namespace
+ 
++// Owns one FilePathWatcher. Lives on the watcher sequence, so the watcher is
++// created and destroyed there. |on_change| runs on that sequence too.
++class ThemeWatch {
++ public:
++  using OnChange = base::RepeatingCallback<void(bool error)>;
++
++  ThemeWatch(const base::FilePath& path,
++             base::FilePathWatcher::Type type,
++             OnChange on_change)
++      : on_change_(std::move(on_change)) {
++    if (!watcher_.Watch(path, type,
++                        base::BindRepeating(&ThemeWatch::OnEvent,
++                                            base::Unretained(this)))) {
++      LOG(WARNING) << "omarchy: could not watch " << path;
++    }
++  }
++
++ private:
++  void OnEvent(const base::FilePath&, bool error) {
++    on_change_.Run(error);
++  }
++
++  base::FilePathWatcher watcher_;
++  OnChange on_change_;
++};
++
+ OmarchyTheme::Paths OmarchyTheme::Paths::ForHome(const base::FilePath& home) {
+   Paths paths;
+-  paths.theme_dir =
+-      home.Append(".local/state/omarchy/current/theme");
++  paths.current_dir = home.Append(".local/state/omarchy/current");
++  paths.theme_dir = paths.current_dir.Append("theme");
+   paths.theme_lua = paths.theme_dir.Append("hyprland.lua");
+   paths.user_lua = home.Append(".config/hypr/looknfeel.lua");
+   return paths;
+@@ -44,6 +76,12 @@
+     base::PathService::Get(base::DIR_HOME, &home);
+     return Paths::ForHome(home);
+   }());
++  // Start once, on the first call. The initial read runs in the background.
++  [[maybe_unused]] static const bool started = [] {
++    instance->StartWatching();
++    instance->Reload();
++    return true;
++  }();
+   return instance.get();
+ }
+ 
+@@ -64,6 +102,42 @@
+       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+       base::BindOnce(&OmarchyTheme::ReadFromDisk, paths_),
+       base::BindOnce(&OmarchyTheme::OnLoaded, weak_factory_.GetWeakPtr()));
++}
++
++void OmarchyTheme::StartWatching() {
++  scoped_refptr<base::SequencedTaskRunner> ui_task_runner =
++      base::SequencedTaskRunner::GetCurrentDefault();
++  scoped_refptr<base::SequencedTaskRunner> watch_task_runner =
++      base::ThreadPool::CreateSequencedTaskRunner({base::MayBlock()});
++
++  // Runs on the watcher sequence. Hop to the UI thread before touching state.
++  ThemeWatch::OnChange on_change = base::BindRepeating(
++      [](scoped_refptr<base::SequencedTaskRunner> ui,
++         base::WeakPtr<OmarchyTheme> theme, bool error) {
++        ui->PostTask(FROM_HERE,
++                     base::BindOnce(&OmarchyTheme::OnWatchEvent, theme, error));
++      },
++      ui_task_runner, weak_factory_.GetWeakPtr());
++
++  // The current directory is watched recursively: a theme switch replaces the
++  // `theme` directory itself, so only its parent sees the change.
++  theme_watch_ = base::SequenceBound<ThemeWatch>(
++      watch_task_runner, paths_.current_dir,
++      base::FilePathWatcher::Type::kRecursive, on_change);
++  user_watch_ = base::SequenceBound<ThemeWatch>(
++      watch_task_runner, paths_.user_lua,
++      base::FilePathWatcher::Type::kNonRecursive, on_change);
++}
++
++void OmarchyTheme::OnWatchEvent(bool error) {
++  if (error) {
++    // The platform watcher stopped. Reload once now, so the state stays
++    // current, but further changes will not be seen until restart.
++    LOG(WARNING) << "omarchy: theme watcher reported an error";
++  }
++  debounce_timer_.Start(FROM_HERE, kReloadDebounce,
++                        base::BindOnce(&OmarchyTheme::Reload,
++                                       base::Unretained(this)));
+ }
+ 
+ // static
+--- a/chrome/browser/omarchy/omarchy_theme_unittest.cc
++++ b/chrome/browser/omarchy/omarchy_theme_unittest.cc
+@@ -6,6 +6,8 @@
+ 
+ #include "base/files/file_util.h"
+ #include "base/files/scoped_temp_dir.h"
++#include <string>
++#include "base/test/run_until.h"
+ #include "base/test/task_environment.h"
+ #include "testing/gtest/include/gtest/gtest.h"
+ 
+@@ -40,7 +42,9 @@
+     task_environment_.RunUntilIdle();
+   }
+ 
+-  base::test::TaskEnvironment task_environment_;
++  // The IO main thread lets FilePathWatcher run where the tests need it.
++  base::test::TaskEnvironment task_environment_{
++      base::test::TaskEnvironment::MainThreadType::IO};
+   base::ScopedTempDir home_;
+   OmarchyTheme::Paths paths_;
+ };
+@@ -132,5 +136,49 @@
+   theme.RemoveObserver(&observer);
+ }
+ 
++TEST_F(OmarchyThemeTest, ReloadsWhenThemeFileChanges) {
++  OmarchyTheme theme(paths_);
++  CountingObserver observer;
++  theme.AddObserver(&observer);
++  theme.StartWatching();
++
++  // The watch is set up on a background sequence, so an early write can be
++  // missed. Keep writing new content until one lands after the watch starts.
++  int generation = 0;
++  EXPECT_TRUE(base::test::RunUntil([&] {
++    Write(paths_.theme_dir.Append("colors.toml"),
++          ("background = \"#1e1e2e\"\nvalue = \"" +
++           std::to_string(++generation) + "\"\n")
++              .c_str());
++    return observer.count() > 0;
++  }));
++  EXPECT_TRUE(theme.has_theme());
++  theme.RemoveObserver(&observer);
++}
++
++TEST_F(OmarchyThemeTest, BurstOfChangesReloadsOnce) {
++  Write(paths_.theme_dir.Append("colors.toml"),
++        "background = \"#1e1e2e\"\n");
++  OmarchyTheme theme(paths_);
++  CountingObserver observer;
++  theme.AddObserver(&observer);
++  theme.StartWatching();
++
++  // Let the initial watch settle, then make several quick edits. The debounce
++  // should coalesce them into a single reload, so one notification.
++  EXPECT_TRUE(base::test::RunUntil([&] {
++    Write(paths_.theme_dir.Append("colors.toml"),
++          "background = \"#1e1e2e\"\n");
++    return observer.count() > 0;
++  }));
++  int before = observer.count();
++  for (int i = 0; i < 5; ++i) {
++    Write(paths_.user_lua, ("rounding = " + std::to_string(i) + "\n").c_str());
++  }
++  EXPECT_TRUE(base::test::RunUntil([&] { return observer.count() > before; }));
++  EXPECT_EQ(observer.count(), before + 1);
++  theme.RemoveObserver(&observer);
++}
++
+ }  // namespace
+ }  // namespace omarchy
