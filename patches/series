@@ -1,5 +1,4 @@
 ungoogled-chromium/portablelinux/use-oauth2-client-switches-as-default.patch
-
 helium/linux/change-chromium-branding.patch
 helium/linux/rename-chrome-binary.patch
 helium/linux/use-default-theme.patch
@@ -17,3 +16,5 @@ omarchy/0008-omarchy-radius-token-default-arg.patch
 omarchy/0009-omarchy-focus-ring-state-colour.patch
 omarchy/0010-omarchy-search-box-and-focus-radius.patch
 omarchy/0011-omarchy-search-box-background-radius.patch
+omarchy/0012-omarchy-tab-and-results-radius.patch
+omarchy/0013-omarchy-results-frame-profile.patch

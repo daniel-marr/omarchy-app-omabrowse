@@ -1,0 +1,13 @@
+--- a/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
++++ b/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
+@@ -362,8 +362,8 @@
+   int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+       views::ShapeContextTokens::kOmniboxExpandedRadius);
+   // The rounded search box setting also squares the results dropdown.
+-  if (!browser_->GetProfile()->GetPrefs()->GetBoolean(
+-          prefs::kHeliumRoundedOmnibox)) {
++  if (browser_view_ && !browser_view_->GetProfile()->GetPrefs()->GetBoolean(
++                           prefs::kHeliumRoundedOmnibox)) {
+     corner_radius = 0;
+   }
+   auto border = std::make_unique<views::BubbleBorder>(

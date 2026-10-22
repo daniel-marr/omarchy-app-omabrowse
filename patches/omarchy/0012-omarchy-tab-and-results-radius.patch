@@ -1,0 +1,49 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -5,6 +5,7 @@
+ #include "chrome/browser/ui/layout_constants.h"
+ 
+ #include "base/notreached.h"
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "build/build_config.h"
+ #include "chrome/browser/ui/tabs/features.h"
+ #include "chrome/browser/ui/ui_features.h"
+@@ -150,8 +151,12 @@
+       return 20;
+     case LayoutConstant::kMainBackgroundRegionCornerRadius:
+     case LayoutConstant::kToolbarCornerRadius:
+-    case LayoutConstant::kVerticalTabCornerRadius:
+       return 8;
++    case LayoutConstant::kVerticalTabCornerRadius: {
++      // Tabs follow the Omarchy theme radius when a theme is present.
++      omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
++      return theme->has_theme() ? theme->radius() : 8;
++    }
+     case LayoutConstant::kVerticalTabHeight:
+       return 30;
+     case LayoutConstant::kVerticalTabPinnedHeight:
+--- a/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
++++ b/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
+@@ -13,6 +13,7 @@
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/layout_constants.h"
++#include "chrome/common/pref_names.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/omnibox/omnibox_aim_popup_webui_content.h"
+@@ -358,8 +359,13 @@
+ }
+ 
+ void RoundedOmniboxResultsFrame::SetElevation(int elevation) {
+-  const int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
++  int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+       views::ShapeContextTokens::kOmniboxExpandedRadius);
++  // The rounded search box setting also squares the results dropdown.
++  if (!browser_->GetProfile()->GetPrefs()->GetBoolean(
++          prefs::kHeliumRoundedOmnibox)) {
++    corner_radius = 0;
++  }
+   auto border = std::make_unique<views::BubbleBorder>(
+       views::BubbleBorder::Arrow::NONE,
+       elevation == 0 ? views::BubbleBorder::Shadow::NO_SHADOW
