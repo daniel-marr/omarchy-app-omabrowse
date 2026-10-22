@@ -1,0 +1,270 @@
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
+@@ -621,10 +621,6 @@
+ // A boolean pref set to true if web contents should be shown inside a rounded
+ // frame.
+ inline constexpr char kHeliumRoundedFrame[] = "helium.browser.rounded_frame";
+-
+-// A boolean pref set to true if the search box corners follow the Omarchy theme
+-// radius, and false to keep them square.
+-inline constexpr char kHeliumRoundedOmnibox[] = "helium.browser.rounded_omnibox";
+ 
+ // A boolean pref set to true if browser frame surfaces should use native system
+ // materials instead of opaque fills.
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -134,7 +134,6 @@
+   registry->RegisterBooleanPref(prefs::kShowZoomIndicator, true);
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumRoundedFrame, true);
+-  registry->RegisterBooleanPref(prefs::kHeliumRoundedOmnibox, true);
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumNativeFrameMaterials, false);
+ 
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
+@@ -326,8 +326,6 @@
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumRoundedFrame] =
+       settings_api::PrefType::kBoolean;
+-  (*s_allowlist)[::prefs::kHeliumRoundedOmnibox] =
+-      settings_api::PrefType::kBoolean;
+ 
+   (*s_allowlist)[::prefs::kShowHomeButton] = settings_api::PrefType::kBoolean;
+   (*s_allowlist)[contextual_search::kDriveConsentState] =
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -276,11 +276,8 @@
+     <message name="IDS_SETTINGS_SHOW_ZOOM_INDICATOR" desc="Label for the checkbox which shows the current page zoom percentage in the address bar.">
+       Show the zoom indicator in the address bar
+     </message>
+-    <message name="IDS_SETTINGS_ROUNDED_FRAME" desc="Label for the toggle which enables or disables a rounded frame around web contents.">
+-      Show a rounded frame around web contents
+-    </message>
+-    <message name="IDS_SETTINGS_ROUNDED_OMNIBOX" desc="Label for the toggle which enables or disables rounded corners on the search box. When off, the search box is square.">
+-      Rounded search box
++    <message name="IDS_SETTINGS_ROUNDED_FRAME" desc="Label for the single toggle which makes all corners rounded or square: the web contents frame, tabs, the search box and the rest of the UI.">
++      Rounded corners
+     </message>
+     <message name="IDS_SETTINGS_NATIVE_FRAME_MATERIALS" desc="Label for the toggle which enables or disables native system materials on the browser frame.">
+       Use native frame materials (experimental)
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
+@@ -608,7 +608,6 @@
+       {"openNewTabNextToActive", IDS_SETTINGS_NEW_TAB_NEXT_TO_ACTIVE_BUTTON},
+       {"cycleTabsInMRUOrder", IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER},
+       {"roundedFrame", IDS_SETTINGS_ROUNDED_FRAME},
+-      {"roundedOmnibox", IDS_SETTINGS_ROUNDED_OMNIBOX},
+       {"nativeFrameMaterials", IDS_SETTINGS_NATIVE_FRAME_MATERIALS},
+       {"nativeFrameMaterialsDescription",
+        IDS_SETTINGS_NATIVE_FRAME_MATERIALS_DESCRIPTION},
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
+@@ -69,10 +69,6 @@
+     <settings-toggle-button
+         pref-key="helium.browser.rounded_frame"
+         label="$i18n{roundedFrame}">
+-    </settings-toggle-button>
+-    <settings-toggle-button
+-        pref-key="helium.browser.rounded_omnibox"
+-        label="$i18n{roundedOmnibox}">
+     </settings-toggle-button>
+     <settings-toggle-button class="hr"
+         ?hidden="${!this.showNativeFrameMaterialsOption_}"
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -96,7 +96,6 @@
+ #include "chrome/browser/ui/webui/omnibox_popup/omnibox_popup_ui.h"
+ #include "chrome/browser/web_applications/link_capturing_features.h"
+ #include "chrome/common/chrome_features.h"
+-#include "chrome/common/pref_names.h"
+ #include "chrome/grit/generated_resources.h"
+ #include "chrome/grit/omnibox_popup_resources.h"
+ #include "components/commerce/core/commerce_feature_list.h"
+@@ -247,9 +246,6 @@
+     pref_registrar_->Add(omnibox::kShowAiModeOmniboxButton,
+                          base::BindRepeating(&LocationBarView::OnChanged,
+                                              base::Unretained(this)));
+-    pref_registrar_->Add(prefs::kHeliumRoundedOmnibox,
+-                         base::BindRepeating(&LocationBarView::OnChanged,
+-                                             base::Unretained(this)));
+   }
+ 
+   run_omnibox_context_menu_callback_ =
+@@ -571,11 +567,6 @@
+ }
+ 
+ int LocationBarView::GetBorderRadius() const {
+-  // The setting turns the theme radius off, which keeps the search box square.
+-  if (!browser_->GetProfile()->GetPrefs()->GetBoolean(
+-          prefs::kHeliumRoundedOmnibox)) {
+-    return 0;
+-  }
+   return ComputeBorderRadius(size());
+ }
+ 
+--- a/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h
++++ b/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h
+@@ -87,8 +87,6 @@
+   // True when the WebUI paints the popup's background, rounded corners and
+   // drop shadow instead of this frame. Determined at construction.
+   bool draw_shadow_in_webui_ = false;
+-  // Whether the rounded search box setting is on. Read once at construction.
+-  bool rounded_omnibox_ = true;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_OMNIBOX_ROUNDED_OMNIBOX_RESULTS_FRAME_H_
+--- a/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
++++ b/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
+@@ -14,7 +14,6 @@
+ #include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/layout_constants.h"
+-#include "chrome/common/pref_names.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/views/location_bar/location_bar_view.h"
+ #include "chrome/browser/ui/views/omnibox/omnibox_aim_popup_webui_content.h"
+@@ -236,18 +235,12 @@
+     LocationBar* location_bar,
+     bool forward_mouse_events)
+     : contents_(contents), forward_mouse_events_(forward_mouse_events) {
+-  // The popup follows the Omarchy theme radius. The search box setting turns it
+-  // off, so the popup is square too.
+-  rounded_omnibox_ =
+-      !location_bar || location_bar->GetProfile()->GetPrefs()->GetBoolean(
+-                           prefs::kHeliumRoundedOmnibox);
++  // With an Omarchy theme, the popup takes the theme radius. The Rounded
++  // corners setting makes that radius 0.
+   int corner_radius = 12;
+   omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
+   if (theme->has_theme()) {
+     corner_radius = theme->radius();
+-  }
+-  if (!rounded_omnibox_) {
+-    corner_radius = 0;
+   }
+   auto* webui_content = GetOmniboxPopupWebUIBaseContent();
+   // When the page paints the popup's shadow, this frame must not paint a
+@@ -374,9 +367,6 @@
+ void RoundedOmniboxResultsFrame::SetElevation(int elevation) {
+   int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+       views::ShapeContextTokens::kOmniboxExpandedRadius);
+-  if (!rounded_omnibox_) {
+-    corner_radius = 0;
+-  }
+   auto border = std::make_unique<views::BubbleBorder>(
+       views::BubbleBorder::Arrow::NONE,
+       elevation == 0 ? views::BubbleBorder::Shadow::NO_SHADOW
+--- a/ui/../chrome/browser/omarchy/omarchy_theme.h
++++ b/ui/../chrome/browser/omarchy/omarchy_theme.h
+@@ -67,8 +67,11 @@
+   // True once a colours file has parsed. Until then Helium behaves like stock.
+   bool has_theme() const { return has_theme_; }
+   const ThemeColors& colors() const { return colors_; }
+-  // Corner radius in px, always in [0, kMaxRadius]. 0 is Omarchy's default.
+-  int radius() const { return radius_; }
++  // Corner radius in px, always in [0, kMaxRadius]. 0 is Omarchy's default,
++  // and also what every radius is when corners are turned off.
++  int radius() const { return corners_enabled_ ? radius_ : 0; }
++  // Turns all theme radii on or off. Observers are notified on change.
++  void SetCornersEnabled(bool enabled);
+ 
+  private:
+   struct Loaded {
+@@ -84,6 +87,7 @@
+   bool has_theme_ = false;
+   ThemeColors colors_;
+   int radius_ = 0;
++  bool corners_enabled_ = true;
+   base::ObserverList<Observer> observers_;
+ 
+   // Watchers run on their own sequence. They report back to the UI thread.
+--- a/chrome/browser/omarchy/omarchy_theme.cc
++++ b/chrome/browser/omarchy/omarchy_theme.cc
+@@ -166,6 +166,16 @@
+   return loaded;
+ }
+ 
++void OmarchyTheme::SetCornersEnabled(bool enabled) {
++  if (corners_enabled_ == enabled) {
++    return;
++  }
++  corners_enabled_ = enabled;
++  for (Observer& observer : observers_) {
++    observer.OnOmarchyThemeChanged();
++  }
++}
++
+ void OmarchyTheme::OnLoaded(Loaded loaded) {
+   bool changed = false;
+ 
+--- a/chrome/browser/omarchy/omarchy_theme_bridge.cc
++++ b/chrome/browser/omarchy/omarchy_theme_bridge.cc
+@@ -18,6 +18,8 @@
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/themes/theme_service_factory.h"
+ #include "chrome/browser/themes/theme_service_observer.h"
++#include "chrome/common/pref_names.h"
++#include "components/prefs/pref_change_registrar.h"
+ 
+ namespace omarchy {
+ namespace {
+@@ -32,6 +34,11 @@
+  public:
+   explicit ProfileThemeWatch(Profile* profile) : profile_(profile) {
+     profile_observation_.Observe(profile_);
++    pref_registrar_.Init(profile_->GetPrefs());
++    pref_registrar_.Add(prefs::kHeliumRoundedFrame,
++                        base::BindRepeating(&ProfileThemeWatch::ApplyCornersPref,
++                                            base::Unretained(this)));
++    ApplyCornersPref();
+   }
+   ProfileThemeWatch(const ProfileThemeWatch&) = delete;
+   ProfileThemeWatch& operator=(const ProfileThemeWatch&) = delete;
+@@ -65,9 +72,16 @@
+   void OnProfileWillBeDestroyed(Profile*) override {
+     theme_observation_.Reset();
+     profile_observation_.Reset();
++    pref_registrar_.RemoveAll();
+   }
+ 
+  private:
++  // Applies the profile's Rounded corners setting to the theme radius.
++  void ApplyCornersPref() {
++    OmarchyTheme::GetInstance()->SetCornersEnabled(
++        profile_->GetPrefs()->GetBoolean(prefs::kHeliumRoundedFrame));
++  }
++
+   // Re-applies the palette only if something else replaced it.
+   void ReapplyIfReplaced() {
+     // The profile may have been destroyed while this task was queued.
+@@ -86,6 +100,7 @@
+   base::ScopedObservation<ThemeService, ThemeServiceObserver>
+       theme_observation_{this};
+   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
++  PrefChangeRegistrar pref_registrar_;
+   base::WeakPtrFactory<ProfileThemeWatch> weak_factory_{this};
+ };
+ 
+--- a/chrome/browser/ui/views/frame/browser_frame_view_linux_native.cc
++++ b/chrome/browser/ui/views/frame/browser_frame_view_linux_native.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/views/frame/browser_frame_view_linux_native.h"
+ 
+ #include "base/notreached.h"
+@@ -52,6 +53,11 @@
+ }
+ 
+ float BrowserFrameViewLinuxNative::GetRestoredCornerRadiusDip() const {
++  // With an Omarchy theme, the window corners take the theme radius.
++  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
++  if (theme->has_theme()) {
++    return theme->radius();
++  }
+   return layout_->GetFrameProvider()->GetTopCornerRadiusDip();
+ }
+ 
