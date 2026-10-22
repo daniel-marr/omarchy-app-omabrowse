@@ -1,0 +1,61 @@
+--- a/chrome/browser/omarchy/omarchy_theme_bridge.cc
++++ b/chrome/browser/omarchy/omarchy_theme_bridge.cc
+@@ -6,6 +6,7 @@
+ 
+ #include <utility>
+ 
++#include "base/logging.h"
+ #include "base/memory/raw_ptr.h"
+ #include "base/memory/ref_counted.h"
+ #include "base/no_destructor.h"
+@@ -48,18 +49,16 @@
+     }
+     service->SetCustomDefaultTheme(
+         base::MakeRefCounted<OmarchyThemeSupplier>(theme->colors()));
++    LOG(INFO) << "omarchy: applied palette to profile";
+   }
+ 
+   // ThemeServiceObserver:
+   void OnThemeChanged() override {
+-    // Applying the palette itself notifies again. Stop once it is in place,
+-    // so this cannot loop.
+-    ThemeService* service = ThemeServiceFactory::GetForProfile(profile_);
+-    CustomThemeSupplier* supplier = service->GetThemeSupplier();
+-    if (supplier && supplier->get_theme_type() == ThemeType::kOmarchy) {
+-      return;
+-    }
+-    Apply();
++    // The service does not allow re-entrant notification, and applying the
++    // palette notifies again. Re-check on a later task instead.
++    base::SequencedTaskRunner::GetCurrentDefault()->PostTask(
++        FROM_HERE, base::BindOnce(&ProfileThemeWatch::ReapplyIfReplaced,
++                                  weak_factory_.GetWeakPtr()));
+   }
+ 
+   // ProfileObserver:
+@@ -69,10 +68,25 @@
+   }
+ 
+  private:
++  // Re-applies the palette only if something else replaced it.
++  void ReapplyIfReplaced() {
++    // The profile may have been destroyed while this task was queued.
++    if (!profile_observation_.IsObserving()) {
++      return;
++    }
++    ThemeService* service = ThemeServiceFactory::GetForProfile(profile_);
++    CustomThemeSupplier* supplier = service->GetThemeSupplier();
++    if (supplier && supplier->get_theme_type() == ThemeType::kOmarchy) {
++      return;
++    }
++    Apply();
++  }
++
+   raw_ptr<Profile> profile_;
+   base::ScopedObservation<ThemeService, ThemeServiceObserver>
+       theme_observation_{this};
+   base::ScopedObservation<Profile, ProfileObserver> profile_observation_{this};
++  base::WeakPtrFactory<ProfileThemeWatch> weak_factory_{this};
+ };
+ 
+ OmarchyThemeBridge::OmarchyThemeBridge(ProfileManager* profile_manager) {
