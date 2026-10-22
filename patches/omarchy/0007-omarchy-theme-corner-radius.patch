@@ -1,0 +1,87 @@
+--- a/ui/views/layout/layout_provider.h
++++ b/ui/views/layout/layout_provider.h
+@@ -254,8 +254,8 @@
+   // Returns the corner radius related to a specific context token.
+   // TODO(crbug.com/40255130): Replace GetCornerRadiusMetric(Emphasis...) with
+   // context tokens.
+-  int GetCornerRadiusMetric(ShapeContextTokens token,
+-                            const gfx::Size& size = gfx::Size()) const;
++  virtual int GetCornerRadiusMetric(ShapeContextTokens token,
++                                    const gfx::Size& size = gfx::Size()) const;
+ 
+  protected:
+   static constexpr int kSmallDialogWidth = 320;
+--- a/chrome/browser/ui/views/chrome_layout_provider.h
++++ b/chrome/browser/ui/views/chrome_layout_provider.h
+@@ -270,6 +270,11 @@
+   static std::unique_ptr<views::LayoutProvider> CreateLayoutProvider();
+ 
+   // views::LayoutProvider:
++  using views::LayoutProvider::GetCornerRadiusMetric;
++  int GetCornerRadiusMetric(views::Emphasis emphasis,
++                            const gfx::Size& size) const override;
++  int GetCornerRadiusMetric(views::ShapeContextTokens token,
++                            const gfx::Size& size) const override;
+   gfx::Insets GetInsetsMetric(int metric) const override;
+   int GetDistanceMetric(int metric) const override;
+   int GetSnappedDialogWidth(int min_width) const override;
+--- a/chrome/browser/ui/views/chrome_layout_provider.cc
++++ b/chrome/browser/ui/views/chrome_layout_provider.cc
+@@ -7,6 +7,7 @@
+ #include <algorithm>
+ 
+ #include "base/feature_list.h"
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/ui_features.h"
+ #include "chrome/browser/ui/views/chrome_typography.h"
+ #include "components/omnibox/common/omnibox_features.h"
+@@ -40,6 +41,49 @@
+ std::unique_ptr<views::LayoutProvider>
+ ChromeLayoutProvider::CreateLayoutProvider() {
+   return std::make_unique<ChromeLayoutProvider>();
++}
++
++// Corner radii follow the active Omarchy theme. Stock values are used when no
++// Omarchy theme is present, so the browser looks the same as before.
++int ChromeLayoutProvider::GetCornerRadiusMetric(views::Emphasis emphasis,
++                                                const gfx::Size& size) const {
++  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
++  if (!theme->has_theme()) {
++    return views::LayoutProvider::GetCornerRadiusMetric(emphasis, size);
++  }
++  const int radius = theme->radius();
++  const int half = std::min(size.width(), size.height()) / 2;
++  switch (emphasis) {
++    case views::Emphasis::kNone:
++      return 0;
++    case views::Emphasis::kLow:
++    case views::Emphasis::kMedium:
++      return radius / 2;
++    case views::Emphasis::kHigh:
++      return radius;
++    case views::Emphasis::kMaximum:
++      // An unsized request has no pill limit, so it takes the full radius.
++      return size.IsEmpty() ? radius : std::min(radius, half);
++  }
++}
++
++int ChromeLayoutProvider::GetCornerRadiusMetric(views::ShapeContextTokens token,
++                                                const gfx::Size& size) const {
++  const int stock = views::LayoutProvider::GetCornerRadiusMetric(token, size);
++  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
++  if (!theme->has_theme()) {
++    return stock;
++  }
++  const int radius = theme->radius();
++  const int half = std::min(size.width(), size.height()) / 2;
++  if (!size.IsEmpty() && half > 0 && stock == half) {
++    // A pill-shaped control: follow the theme, but never exceed the pill.
++    return std::min(radius, half);
++  }
++  // Other stock sizes are designed for a 24 px large radius. Scale them to the
++  // theme, so a 24 px theme leaves them unchanged and a 0 px theme makes them
++  // square.
++  return stock * radius / omarchy::kMaxRadius;
+ }
+ 
+ gfx::Insets ChromeLayoutProvider::GetInsetsMetric(int metric) const {
