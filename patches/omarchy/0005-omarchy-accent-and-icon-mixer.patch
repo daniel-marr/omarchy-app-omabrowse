@@ -1,0 +1,83 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.h
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.h
+@@ -6,6 +6,7 @@
+ #define CHROME_BROWSER_OMARCHY_OMARCHY_THEME_SUPPLIER_H_
+ 
+ #include <map>
++#include <optional>
+ 
+ #include "chrome/browser/omarchy/omarchy_theme_parse.h"
+ #include "chrome/browser/themes/custom_theme_supplier.h"
+@@ -34,6 +35,10 @@
+ 
+   // CustomThemeSupplier:
+   bool GetColor(int id, SkColor* color) const override;
++  // Adds the base property mapping, then sets the accent-driven colours that
++  // the property mapping does not reach: the focus ring and the icon colours.
++  void AddColorMixers(ui::ColorProvider* provider,
++                      const ui::ColorProviderKey& key) const override;
+ 
+  private:
+   ~OmarchyThemeSupplier() override;
+@@ -41,6 +46,9 @@
+   // Theme property ID to colour. Properties without a palette entry are
+   // absent, so the browser falls back to its own defaults for them.
+   std::map<int, SkColor> colors_;
++  // Palette entries used by AddColorMixers(), when the theme provides them.
++  std::optional<SkColor> accent_;
++  std::optional<SkColor> foreground_;
+ };
+ 
+ }  // namespace omarchy
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -8,6 +8,11 @@
+ #include <iterator>
+ 
+ #include "chrome/browser/themes/theme_properties.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
++#include "ui/color/color_id.h"
++#include "ui/color/color_mixer.h"
++#include "ui/color/color_recipe.h"
++#include "ui/color/color_provider.h"
+ #include "third_party/skia/include/core/SkColor.h"
+ 
+ namespace omarchy {
+@@ -60,9 +65,37 @@
+     colors_[mapping.property] =
+         SkColorSetRGB((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
+   }
++
++  auto to_sk = [](uint32_t rgb) {
++    return SkColorSetRGB((rgb >> 16) & 0xff, (rgb >> 8) & 0xff, rgb & 0xff);
++  };
++  if (auto it = theme.colors.find("accent"); it != theme.colors.end()) {
++    accent_ = to_sk(it->second);
++  }
++  if (auto it = theme.colors.find("foreground"); it != theme.colors.end()) {
++    foreground_ = to_sk(it->second);
++  }
+ }
+ 
+ OmarchyThemeSupplier::~OmarchyThemeSupplier() = default;
++
++void OmarchyThemeSupplier::AddColorMixers(ui::ColorProvider* provider,
++                                          const ui::ColorProviderKey& key) const {
++  CustomThemeSupplier::AddColorMixers(provider, key);
++
++  // Added after the base mixer, so these win for the same colour IDs.
++  ui::ColorMixer& mixer = provider->AddMixer();
++  if (accent_) {
++    // Material primary drives the focus ring and other accent surfaces.
++    mixer[ui::kColorSysPrimary] = {*accent_};
++    mixer[ui::kColorFocusableBorderFocused] = {*accent_};
++  }
++  if (foreground_) {
++    // Most icons derive from these, so the whole UI icon set follows the theme.
++    mixer[ui::kColorSysOnSurface] = {*foreground_};
++    mixer[kColorToolbarButtonIcon] = {*foreground_};
++  }
++}
+ 
+ bool OmarchyThemeSupplier::GetColor(int id, SkColor* color) const {
+   auto it = colors_.find(id);
