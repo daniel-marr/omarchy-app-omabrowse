@@ -1,0 +1,32 @@
+--- a/chrome/browser/ui/views/helium/frame_corner_radius.cc
++++ b/chrome/browser/ui/views/helium/frame_corner_radius.cc
+@@ -2,22 +2,25 @@
+ // You can use, redistribute, and/or modify this source code under
+ // the terms of the GPL-3.0 license that can be found in the LICENSE file.
+ 
++#include <algorithm>
++
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ 
+ #include "build/build_config.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ 
+ int GetGenericFrameRadius() {
+-  return 8;
++  return omarchy::ScaledCornerRadius(8);
+ }
+ 
+ #if !BUILDFLAG(IS_MAC)
+ int GetSystemWindowRadius() {
+-  return 8;
++  return omarchy::ScaledCornerRadius(8);
+ }
+ #endif
+ 
+ int GetPaddedFrameRadius() {
+-  return GetSystemWindowRadius() -
+-         GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
++  return std::max(0, GetSystemWindowRadius() -
++                         GetLayoutConstant(LayoutConstant::kHeliumBasePadding));
+ }
