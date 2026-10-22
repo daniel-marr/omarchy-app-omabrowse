@@ -1,0 +1,26 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -93,17 +93,18 @@
+     // Material primary drives the focus ring and other accent surfaces.
+     mixer[ui::kColorSysPrimary] = {*accent_};
+     mixer[ui::kColorFocusableBorderFocused] = {*accent_};
++    // Enabled toolbar icons take the accent. Disabled ones keep their own
++    // dimmed colour, so back and forward still look inactive with no history.
++    mixer[kColorToolbarButtonIcon] = {*accent_};
++    mixer[kColorToolbarButtonIconDefault] = {*accent_};
++    mixer[kColorToolbarButtonIconHovered] = {*accent_};
++    mixer[kColorToolbarButtonIconPressed] = {*accent_};
+     // The focus ring is computed from the seed palette, so set its state colour too.
+     mixer[ui::kColorSysStateFocusRing] = {*accent_};
+   }
+   if (foreground_) {
+     // Most icons derive from these, so the whole UI icon set follows the theme.
+     mixer[ui::kColorSysOnSurface] = {*foreground_};
+-    mixer[kColorToolbarButtonIcon] = {*foreground_};
+-    mixer[kColorToolbarButtonIconDefault] = {*foreground_};
+-    mixer[kColorToolbarButtonIconHovered] = {*foreground_};
+-    mixer[kColorToolbarButtonIconPressed] = {*foreground_};
+-    mixer[kColorToolbarButtonIconInactive] = {*foreground_};
+   }
+   if (bright_foreground_) {
+     // Inactive tab titles, including the vertical sidebar, read as bright text.
