@@ -1,0 +1,169 @@
+--- a/chrome/browser/omarchy/omarchy_theme.h
++++ b/chrome/browser/omarchy/omarchy_theme.h
+@@ -72,6 +72,10 @@
+   int radius() const { return corners_enabled_ ? radius_ : 0; }
+   // Turns all theme radii on or off. Observers are notified on change.
+   void SetCornersEnabled(bool enabled);
++  // True when the Rounded corners setting is off and an Omarchy theme is
++  // present. In that case every corner radius in the UI is 0. Otherwise the
++  // stock Chromium radii apply.
++  bool corners_squared() const { return has_theme_ && !corners_enabled_; }
+ 
+  private:
+   struct Loaded {
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -151,12 +151,8 @@
+       return 20;
+     case LayoutConstant::kMainBackgroundRegionCornerRadius:
+     case LayoutConstant::kToolbarCornerRadius:
+-      return 8;
+-    case LayoutConstant::kVerticalTabCornerRadius: {
+-      // Tabs follow the Omarchy theme radius when a theme is present.
+-      omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
+-      return theme->has_theme() ? theme->radius() : 8;
+-    }
++    case LayoutConstant::kVerticalTabCornerRadius:
++      return omarchy::OmarchyTheme::GetInstance()->corners_squared() ? 0 : 8;
+     case LayoutConstant::kVerticalTabHeight:
+       return 30;
+     case LayoutConstant::kVerticalTabPinnedHeight:
+--- a/chrome/browser/ui/views/chrome_layout_provider.cc
++++ b/chrome/browser/ui/views/chrome_layout_provider.cc
+@@ -43,57 +43,29 @@
+   return std::make_unique<ChromeLayoutProvider>();
+ }
+ 
+-// Corner radii follow the active Omarchy theme. Stock values are used when no
+-// Omarchy theme is present, so the browser looks the same as before.
++// The Rounded corners setting is the only control. When it is off and an
++// Omarchy theme is present, every radius is 0. Otherwise the stock values apply.
+ int ChromeLayoutProvider::GetCornerRadiusMetric(views::Emphasis emphasis,
+                                                 const gfx::Size& size) const {
+-  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
+-  if (!theme->has_theme()) {
+-    return views::LayoutProvider::GetCornerRadiusMetric(emphasis, size);
+-  }
+-  const int radius = theme->radius();
+-  const int half = std::min(size.width(), size.height()) / 2;
+-  switch (emphasis) {
+-    case views::Emphasis::kNone:
+-      return 0;
+-    case views::Emphasis::kLow:
+-    case views::Emphasis::kMedium:
+-      return radius / 2;
+-    case views::Emphasis::kHigh:
+-      return radius;
+-    case views::Emphasis::kMaximum:
+-      // An unsized request has no pill limit, so it takes the full radius.
+-      return size.IsEmpty() ? radius : std::min(radius, half);
+-  }
++  if (omarchy::OmarchyTheme::GetInstance()->corners_squared()) {
++    return 0;
++  }
++  return views::LayoutProvider::GetCornerRadiusMetric(emphasis, size);
+ }
+ 
+ int ChromeLayoutProvider::GetCornerRadiusMetric(views::ShapeContextTokens token,
+                                                 const gfx::Size& size) const {
+-  const int stock = views::LayoutProvider::GetCornerRadiusMetric(token, size);
+-  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
+-  if (!theme->has_theme()) {
+-    return stock;
+-  }
+-  const int radius = theme->radius();
+-  const int half = std::min(size.width(), size.height()) / 2;
+-  if (!size.IsEmpty() && half > 0 && stock == half) {
+-    // A pill-shaped control: follow the theme, but never exceed the pill.
+-    return std::min(radius, half);
+-  }
+-  // Other stock sizes are designed for a 24 px large radius. Scale them to the
+-  // theme, so a 24 px theme leaves them unchanged and a 0 px theme makes them
+-  // square.
+-  return stock * radius / omarchy::kMaxRadius;
++  if (omarchy::OmarchyTheme::GetInstance()->corners_squared()) {
++    return 0;
++  }
++  return views::LayoutProvider::GetCornerRadiusMetric(token, size);
+ }
+ 
+ float ChromeLayoutProvider::GetFocusRingCornerRadiusMetric(float stock) const {
+-  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
+-  if (!theme->has_theme()) {
+-    return stock;
+-  }
+-  // The ring hugs the control, so it can never be rounder than a third of the
+-  // theme radius. A 0 px theme gives a square ring.
+-  return std::min(stock, static_cast<float>(theme->radius()) / 3.0f);
++  if (omarchy::OmarchyTheme::GetInstance()->corners_squared()) {
++    return 0;
++  }
++  return stock;
+ }
+ 
+ gfx::Insets ChromeLayoutProvider::GetInsetsMetric(int metric) const {
+--- a/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
++++ b/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
+@@ -235,13 +235,9 @@
+     LocationBar* location_bar,
+     bool forward_mouse_events)
+     : contents_(contents), forward_mouse_events_(forward_mouse_events) {
+-  // With an Omarchy theme, the popup takes the theme radius. The Rounded
+-  // corners setting makes that radius 0.
+-  int corner_radius = 12;
+-  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
+-  if (theme->has_theme()) {
+-    corner_radius = theme->radius();
+-  }
++  // The Rounded corners setting turns this popup square.
++  const int corner_radius =
++      omarchy::OmarchyTheme::GetInstance()->corners_squared() ? 0 : 12;
+   auto* webui_content = GetOmniboxPopupWebUIBaseContent();
+   // When the page paints the popup's shadow, this frame must not paint a
+   // background, rounded corners or a shadow: the renderer draws all of them,
+--- a/chrome/browser/ui/views/frame/browser_frame_view_linux_native.cc
++++ b/chrome/browser/ui/views/frame/browser_frame_view_linux_native.cc
+@@ -53,10 +53,9 @@
+ }
+ 
+ float BrowserFrameViewLinuxNative::GetRestoredCornerRadiusDip() const {
+-  // With an Omarchy theme, the window corners take the theme radius.
+-  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
+-  if (theme->has_theme()) {
+-    return theme->radius();
++  // The Rounded corners setting also squares the window corners.
++  if (omarchy::OmarchyTheme::GetInstance()->corners_squared()) {
++    return 0;
+   }
+   return layout_->GetFrameProvider()->GetTopCornerRadiusDip();
+ }
+--- a/chrome/browser/ui/webui/theme_source.cc
++++ b/chrome/browser/ui/webui/theme_source.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/webui/theme_source.h"
+ 
+ #include <algorithm>
+@@ -478,6 +479,19 @@
+     }
+   }
+ 
++  // With the Rounded corners setting off, square the shared WebUI corners. The
++  // !important makes this win whatever order the stylesheets load in.
++  if (omarchy::OmarchyTheme::GetInstance()->corners_squared()) {
++    for (const char* var : {"--cr-card-border-radius", "--cr-input-border-radius",
++                            "--cr-dialog-border-radius", "--cr-menu-border-radius",
++                            "--cr-chip-border-radius",
++                            "--cr-toolbar-search-field-border-radius",
++                            "--cr-url-list-item-count-border-radius",
++                            "--cr-input-underline-border-radius"}) {
++      base::StrAppend(&css_string, {var, ":0 !important;"});
++    }
++  }
++
+   css_string.push_back('}');
+   return css_string;
+ }
