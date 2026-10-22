@@ -1,0 +1,11 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -93,6 +93,8 @@
+     // Material primary drives the focus ring and other accent surfaces.
+     mixer[ui::kColorSysPrimary] = {*accent_};
+     mixer[ui::kColorFocusableBorderFocused] = {*accent_};
++    // The focus ring is computed from the seed palette, so set its state colour too.
++    mixer[ui::kColorSysStateFocusRing] = {*accent_};
+   }
+   if (foreground_) {
+     // Most icons derive from these, so the whole UI icon set follows the theme.
