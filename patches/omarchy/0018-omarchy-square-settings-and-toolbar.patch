@@ -1,0 +1,276 @@
+--- a/chrome/browser/omarchy/omarchy_theme.h
++++ b/chrome/browser/omarchy/omarchy_theme.h
+@@ -59,6 +59,10 @@
+   // thread.
+   void Reload();
+ 
++  // Reads the files now, on the calling thread. Used once at startup so the
++  // first windows are built with the theme already known.
++  void LoadNow();
++
+   // Watches the current theme directory and the user's looknfeel.lua. A change
+   // schedules a Reload() after a short quiet period, so one theme switch, which
+   // touches several files, reloads once. Call on the UI thread.
+--- a/chrome/browser/omarchy/omarchy_theme.cc
++++ b/chrome/browser/omarchy/omarchy_theme.cc
+@@ -78,6 +78,7 @@
+   }());
+   // Start once, on the first call. The initial read runs in the background.
+   [[maybe_unused]] static const bool started = [] {
++    instance->LoadNow();
+     instance->StartWatching();
+     instance->Reload();
+     return true;
+@@ -102,6 +103,10 @@
+       FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
+       base::BindOnce(&OmarchyTheme::ReadFromDisk, paths_),
+       base::BindOnce(&OmarchyTheme::OnLoaded, weak_factory_.GetWeakPtr()));
++}
++
++void OmarchyTheme::LoadNow() {
++  OnLoaded(ReadFromDisk(paths_));
+ }
+ 
+ void OmarchyTheme::StartWatching() {
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -100,6 +100,10 @@
+     // Most icons derive from these, so the whole UI icon set follows the theme.
+     mixer[ui::kColorSysOnSurface] = {*foreground_};
+     mixer[kColorToolbarButtonIcon] = {*foreground_};
++    mixer[kColorToolbarButtonIconDefault] = {*foreground_};
++    mixer[kColorToolbarButtonIconHovered] = {*foreground_};
++    mixer[kColorToolbarButtonIconPressed] = {*foreground_};
++    mixer[kColorToolbarButtonIconInactive] = {*foreground_};
+   }
+   if (bright_foreground_) {
+     // Inactive tab titles, including the vertical sidebar, read as bright text.
+--- a/chrome/browser/resources/settings/settings_shared_lit.css
++++ b/chrome/browser/resources/settings/settings_shared_lit.css
+@@ -13,7 +13,7 @@
+ 
+ /* Style overrides for Settings Refresh 2026 experiment */
+ :host-context([settings-refresh-2026]) {
+-  --cr-card-border-radius: 16px;
++  --cr-card-border-radius: calc(16px * var(--omarchy-corner-on, 1));
+   --cr-card-background-color: var(--color-settings-section-background);
+   --cr-card-shadow: none;
+   --cr-title-text-color: var(--color-settings-title-text);
+--- a/chrome/browser/resources/settings/a11y_page/captions_page.css
++++ b/chrome/browser/resources/settings/a11y_page/captions_page.css
+@@ -21,7 +21,7 @@
+     url(chrome://theme/IDR_ACCESSIBILITY_CAPTIONS_PREVIEW_BACKGROUND);
+   background-position: center;
+   background-size: cover;
+-  border-radius: 4px;
++  border-radius: calc(4px * var(--omarchy-corner-on, 1));
+   display: flex;
+   justify-content: center;
+   margin: var(--cr-section-padding);
+--- a/chrome/browser/resources/settings/ai_page/inline_cue_menu_page.css
++++ b/chrome/browser/resources/settings/ai_page/inline_cue_menu_page.css
+@@ -10,7 +10,7 @@
+ 
+ .preview-container {
+   background-color: var(--cr-card-background-color);
+-  border-radius: 12px;
++  border-radius: calc(12px * var(--omarchy-corner-on, 1));
+   margin-bottom: 0;
+   padding: 12px 16px 4px 16px;
+   position: relative;
+@@ -26,7 +26,7 @@
+ 
+ .preview-box {
+   background-color: var(--google-blue-50);
+-  border-radius: 8px;
++  border-radius: calc(8px * var(--omarchy-corner-on, 1));
+   box-sizing: border-box;
+   color: var(--cr-primary-text-color);
+   max-width: 640px;
+@@ -67,7 +67,7 @@
+ .preview-highlight-box {
+   anchor-name: --highlight-box;
+   background-color: var(--google-blue-200);
+-  border-radius: 2px;
++  border-radius: calc(2px * var(--omarchy-corner-on, 1));
+   display: inline-block;
+   position: relative;
+   vertical-align: baseline;
+@@ -99,7 +99,7 @@
+ .preview-pill {
+   align-items: center;
+   background: var(--cr-card-background-color);
+-  border-radius: 12px;
++  border-radius: calc(12px * var(--omarchy-corner-on, 1));
+   box-shadow:
+       0 1px 3px 0.2px rgba(var(--google-blue-600-rgb), 0.4),
+       0 2px 7px 0 rgba(var(--google-blue-600-rgb), 0.4);
+--- a/chrome/browser/resources/settings/autofill_page/account_card.html
++++ b/chrome/browser/resources/settings/autofill_page/account_card.html
+@@ -1,7 +1,7 @@
+     <style include="cr-shared-style settings-shared">
+       #profile-icon {
+         background: center / cover no-repeat;
+-        border-radius: 20px;
++        border-radius: calc(20px * var(--omarchy-corner-on, 1));
+         flex-shrink: 0;
+         height: 40px;
+         width: 40px;
+--- a/chrome/browser/resources/settings/autofill_page/category_reference_card.html
++++ b/chrome/browser/resources/settings/autofill_page/category_reference_card.html
+@@ -24,7 +24,7 @@
+     --cr-button-border-color: transparent;
+     --cr-button-text-color: var(--cr-primary-text-color);
+     --cr-button-height: 36px;
+-    border-radius: 4px;
++    border-radius: calc(4px * var(--omarchy-corner-on, 1));
+     display: flex;
+     justify-content: flex-start;
+     font-size: 12px;
+--- a/chrome/browser/resources/settings/autofill_page/contact_info/gmail_otp_disclaimer_dialog.html
++++ b/chrome/browser/resources/settings/autofill_page/contact_info/gmail_otp_disclaimer_dialog.html
+@@ -1,7 +1,7 @@
+ <style include="cr-shared-style settings-shared">
+   cr-dialog {
+     --cr-dialog-body-padding-horizontal: 20px;
+-    --cr-dialog-border-radius: 12px;
++    --cr-dialog-border-radius: calc(12px * var(--omarchy-corner-on, 1));
+     --cr-dialog-button-container-padding-bottom: 20px;
+     --cr-dialog-button-container-padding-horizontal: 20px;
+     --cr-dialog-button-container-padding-top: 24px;
+--- a/chrome/browser/resources/settings/clear_browsing_data_dialog/clear_browsing_data_time_picker.css
++++ b/chrome/browser/resources/settings/clear_browsing_data_dialog/clear_browsing_data_time_picker.css
+@@ -8,7 +8,7 @@
+  * #css_wrapper_metadata_end */
+ 
+ :host {
+-  --cr-menu-border-radius: 12px;
++  --cr-menu-border-radius: calc(12px * var(--omarchy-corner-on, 1));
+ }
+ 
+ #timePicker {
+--- a/chrome/browser/resources/settings/clear_browsing_data_dialog/clear_browsing_data_dialog.css
++++ b/chrome/browser/resources/settings/clear_browsing_data_dialog/clear_browsing_data_dialog.css
+@@ -16,9 +16,9 @@
+   --cr-dialog-title-font-size: 16px;
+   --cr-dialog-title-slot-padding-bottom: 14px;
+   --cr-section-two-line-min-height: 40px;
+-  --dbd-container-border-radius: 12px;
++  --dbd-container-border-radius: calc(12px * var(--omarchy-corner-on, 1));
+   --dbd-container-color: var(--cr-fallback-color-surface3);
+-  --dbd-container-stacked-border-radius: 4px;
++  --dbd-container-stacked-border-radius: calc(4px * var(--omarchy-corner-on, 1));
+   --dbd-dialog-body-max-height: 400px;
+   --dbd-dialog-max-height: 600px;
+   --settings-checkbox-margin-top: 8px;
+--- a/chrome/browser/resources/settings/people_page/people_page.css
++++ b/chrome/browser/resources/settings/people_page/people_page.css
+@@ -17,7 +17,7 @@
+ 
+ #profile-icon {
+   background: center / cover no-repeat;
+-  border-radius: 20px;
++  border-radius: calc(20px * var(--omarchy-corner-on, 1));
+   flex-shrink: 0;
+   height: 40px;
+   width: 40px;
+--- a/chrome/browser/resources/settings/privacy_page/privacy_guide/privacy_guide_completion_fragment.css
++++ b/chrome/browser/resources/settings/privacy_page/privacy_guide/privacy_guide_completion_fragment.css
+@@ -22,7 +22,7 @@
+ cr-link-row {
+   --cr-link-row-icon-width: 24px;
+   --iron-icon-height: 24px;
+-  border-radius: 4px;
++  border-radius: calc(4px * var(--omarchy-corner-on, 1));
+   padding-inline-end: 8px;
+   padding-inline-start: 4px;
+ }
+--- a/chrome/browser/resources/settings/privacy_page/privacy_guide/privacy_guide_fragment_shared_lit.css
++++ b/chrome/browser/resources/settings/privacy_page/privacy_guide/privacy_guide_fragment_shared_lit.css
+@@ -90,7 +90,7 @@
+ 
+ .embedded-setting-wrapper {
+   border: 1px solid var(--google-grey-300);
+-  border-radius: 4px;
++  border-radius: calc(4px * var(--omarchy-corner-on, 1));
+ }
+ 
+ @media (prefers-color-scheme: dark) {
+--- a/chrome/browser/resources/settings/settings_menu/settings_menu.html
++++ b/chrome/browser/resources/settings/settings_menu/settings_menu.html
+@@ -8,7 +8,7 @@
+ 
+       :host-context([settings-refresh-2026]) .cr-nav-menu-item {
+         --cr-nav-menu-item-content-height: 20px;
+-        border-radius: 100px;
++        border-radius: calc(100px * var(--omarchy-corner-on, 1));
+         line-height: var(--cr-nav-menu-item-content-height);
+         padding-block: 14px;
+         padding-inline-end: 24px;
+@@ -23,7 +23,7 @@
+       }
+ 
+       :host-context([settings-refresh-2026]) .cr-nav-menu-item:focus {
+-        border-radius: 100px;
++        border-radius: calc(100px * var(--omarchy-corner-on, 1));
+       }
+ 
+       :host-context([settings-refresh-2026]) .cr-nav-menu-item:focus:not(:focus-visible) {
+--- a/chrome/browser/resources/settings/system_page/browser_shortcuts_page.html
++++ b/chrome/browser/resources/settings/system_page/browser_shortcuts_page.html
+@@ -28,7 +28,7 @@
+     align-items: center;
+     background: var(--cr-hover-background-color);
+     border: 1px solid transparent;
+-    border-radius: 8px;
++    border-radius: calc(8px * var(--omarchy-corner-on, 1));
+     color: var(--cr-primary-text-color);
+     display: inline-flex;
+     font-size: 12px;
+@@ -75,7 +75,7 @@
+ 
+   #macSystemShortcutsNotice {
+     background: var(--cr-hover-background-color);
+-    border-radius: 8px;
++    border-radius: calc(8px * var(--omarchy-corner-on, 1));
+     line-height: 20px;
+     margin: 0 var(--cr-section-padding) 12px;
+     min-height: 0;
+@@ -89,7 +89,7 @@
+   .loading-block {
+     background: var(--cr-hover-background-color);
+     box-sizing: border-box;
+-    border-radius: 8px;
++    border-radius: calc(8px * var(--omarchy-corner-on, 1));
+   }
+ 
+   .loading-name {
+@@ -109,7 +109,7 @@
+   }
+ 
+   .loading-action {
+-    border-radius: 8px;
++    border-radius: calc(8px * var(--omarchy-corner-on, 1));
+     height: 32px;
+     width: 66px;
+   }
+@@ -118,7 +118,7 @@
+     align-items: center;
+     background: var(--cr-hover-background-color);
+     border: 1px solid var(--cr-separator-color);
+-    border-radius: 8px;
++    border-radius: calc(8px * var(--omarchy-corner-on, 1));
+     color: var(--cr-primary-text-color);
+     display: flex;
+     font-weight: 500;
+--- a/chrome/browser/ui/webui/theme_source.cc
++++ b/chrome/browser/ui/webui/theme_source.cc
+@@ -490,6 +490,8 @@
+                             "--cr-input-underline-border-radius"}) {
+       base::StrAppend(&css_string, {var, ":0 !important;"});
+     }
++    // Settings components multiply their fixed radii by this, so they go square.
++    base::StrAppend(&css_string, {"--omarchy-corner-on:0 !important;"});
+   }
+ 
+   css_string.push_back('}');
