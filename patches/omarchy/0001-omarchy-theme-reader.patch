@@ -1,0 +1,582 @@
+diff --git a/chrome/browser/omarchy/omarchy_theme.h b/chrome/browser/omarchy/omarchy_theme.h
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/omarchy/omarchy_theme.h
+@@ -0,0 +1,80 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_OMARCHY_OMARCHY_THEME_H_
++#define CHROME_BROWSER_OMARCHY_OMARCHY_THEME_H_
++
++#include <optional>
++
++#include "base/files/file_path.h"
++#include "base/functional/callback.h"
++#include "base/memory/raw_ptr.h"
++#include "base/memory/weak_ptr.h"
++#include "base/observer_list.h"
++#include "base/observer_list_types.h"
++#include "chrome/browser/omarchy/omarchy_theme_parse.h"
++
++namespace omarchy {
++
++// The active Omarchy theme as Helium sees it: its palette and corner radius.
++// Reads files from Omarchy's state and config directories. Nothing is written
++// to a profile, so removing the browser also removes the theme.
++class OmarchyTheme {
++ public:
++  class Observer : public base::CheckedObserver {
++   public:
++    // Called on the UI thread after a reload changed the palette or radius.
++    virtual void OnOmarchyThemeChanged() = 0;
++  };
++
++  // Paths are injectable for tests. Use the defaults in production.
++  struct Paths {
++    base::FilePath theme_dir;     // ~/.local/state/omarchy/current/theme
++    base::FilePath theme_lua;     // theme_dir/hyprland.lua
++    base::FilePath user_lua;      // ~/.config/hypr/looknfeel.lua
++    static Paths ForHome(const base::FilePath& home);
++  };
++
++  // Shared instance for the browser process, using the real home directory.
++  static OmarchyTheme* GetInstance();
++
++  // Test constructor. Does not read anything until Reload() is called.
++  explicit OmarchyTheme(Paths paths);
++  OmarchyTheme(const OmarchyTheme&) = delete;
++  OmarchyTheme& operator=(const OmarchyTheme&) = delete;
++  ~OmarchyTheme();
++
++  void AddObserver(Observer* observer);
++  void RemoveObserver(Observer* observer);
++
++  // Re-reads the files on a background task. Observers are notified on the UI
++  // thread when the result differs from the current state.
++  void Reload();
++
++  // True once a colours file has parsed. Until then Helium behaves like stock.
++  bool has_theme() const { return has_theme_; }
++  const ThemeColors& colors() const { return colors_; }
++  // Corner radius in px, always in [0, kMaxRadius]. 0 is Omarchy's default.
++  int radius() const { return radius_; }
++
++ private:
++  struct Loaded {
++    std::optional<ThemeColors> colors;
++    std::optional<int> radius;
++  };
++
++  static Loaded ReadFromDisk(Paths paths);
++  void OnLoaded(Loaded loaded);
++
++  Paths paths_;
++  bool has_theme_ = false;
++  ThemeColors colors_;
++  int radius_ = 0;
++  base::ObserverList<Observer> observers_;
++  base::WeakPtrFactory<OmarchyTheme> weak_factory_{this};
++};
++
++}  // namespace omarchy
++
++#endif  // CHROME_BROWSER_OMARCHY_OMARCHY_THEME_H_
+diff --git a/chrome/browser/omarchy/omarchy_theme.cc b/chrome/browser/omarchy/omarchy_theme.cc
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/omarchy/omarchy_theme.cc
+@@ -0,0 +1,121 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/omarchy/omarchy_theme.h"
++
++#include <utility>
++
++#include "base/files/file_util.h"
++#include "base/logging.h"
++#include "base/no_destructor.h"
++#include "base/path_service.h"
++#include "base/base_paths.h"
++#include "base/task/thread_pool.h"
++
++namespace omarchy {
++namespace {
++
++// Omarchy's own file, read the same way as helium-theme-gen. The file is
++// missing on machines without Omarchy, so a read failure is not an error.
++std::optional<std::string> ReadOptional(const base::FilePath& path) {
++  std::string contents;
++  if (!base::ReadFileToString(path, &contents)) {
++    return std::nullopt;
++  }
++  return contents;
++}
++
++}  // namespace
++
++OmarchyTheme::Paths OmarchyTheme::Paths::ForHome(const base::FilePath& home) {
++  Paths paths;
++  paths.theme_dir =
++      home.Append(".local/state/omarchy/current/theme");
++  paths.theme_lua = paths.theme_dir.Append("hyprland.lua");
++  paths.user_lua = home.Append(".config/hypr/looknfeel.lua");
++  return paths;
++}
++
++// static
++OmarchyTheme* OmarchyTheme::GetInstance() {
++  static base::NoDestructor<OmarchyTheme> instance([] {
++    base::FilePath home;
++    base::PathService::Get(base::DIR_HOME, &home);
++    return Paths::ForHome(home);
++  }());
++  return instance.get();
++}
++
++OmarchyTheme::OmarchyTheme(Paths paths) : paths_(std::move(paths)) {}
++
++OmarchyTheme::~OmarchyTheme() = default;
++
++void OmarchyTheme::AddObserver(Observer* observer) {
++  observers_.AddObserver(observer);
++}
++
++void OmarchyTheme::RemoveObserver(Observer* observer) {
++  observers_.RemoveObserver(observer);
++}
++
++void OmarchyTheme::Reload() {
++  base::ThreadPool::PostTaskAndReplyWithResult(
++      FROM_HERE, {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
++      base::BindOnce(&OmarchyTheme::ReadFromDisk, paths_),
++      base::BindOnce(&OmarchyTheme::OnLoaded, weak_factory_.GetWeakPtr()));
++}
++
++// static
++OmarchyTheme::Loaded OmarchyTheme::ReadFromDisk(Paths paths) {
++  Loaded loaded;
++
++  if (std::optional<std::string> toml =
++          ReadOptional(paths.theme_dir.Append("colors.toml"))) {
++    loaded.colors = ParseColorsToml(*toml);
++    if (!loaded.colors) {
++      LOG(WARNING) << "omarchy: colors.toml is empty or malformed; "
++                      "keeping the previous palette";
++    }
++  }
++
++  // Hyprland loads the theme file before the user's looknfeel, so the user
++  // file wins when both set a radius.
++  if (std::optional<std::string> user = ReadOptional(paths.user_lua)) {
++    loaded.radius = ParseRoundingLua(*user);
++  }
++  if (!loaded.radius) {
++    if (std::optional<std::string> theme = ReadOptional(paths.theme_lua)) {
++      loaded.radius = ParseRoundingLua(*theme);
++    }
++  }
++  return loaded;
++}
++
++void OmarchyTheme::OnLoaded(Loaded loaded) {
++  bool changed = false;
++
++  if (loaded.colors) {
++    if (!has_theme_ || loaded.colors->colors != colors_.colors ||
++        loaded.colors->dark != colors_.dark) {
++      colors_ = std::move(*loaded.colors);
++      has_theme_ = true;
++      changed = true;
++    }
++  }
++
++  // No radius in any file means Omarchy's default of 0.
++  int radius = loaded.radius.value_or(0);
++  if (radius != radius_) {
++    radius_ = radius;
++    changed = true;
++  }
++
++  if (changed) {
++    for (Observer& observer : observers_) {
++      observer.OnOmarchyThemeChanged();
++    }
++  }
++}
++
++}  // namespace omarchy
+diff --git a/chrome/browser/omarchy/omarchy_theme_parse.h b/chrome/browser/omarchy/omarchy_theme_parse.h
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/omarchy/omarchy_theme_parse.h
+@@ -0,0 +1,40 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#ifndef CHROME_BROWSER_OMARCHY_OMARCHY_THEME_PARSE_H_
++#define CHROME_BROWSER_OMARCHY_OMARCHY_THEME_PARSE_H_
++
++#include <cstdint>
++#include <map>
++#include <optional>
++#include <string>
++#include <string_view>
++
++namespace omarchy {
++
++// Largest corner radius the browser will use, in px. Mods above this are
++// clamped so a bad value cannot break the layout.
++inline constexpr int kMaxRadius = 24;
++
++// Parsed contents of an Omarchy theme's colors.toml. Colours are 0xRRGGBB.
++struct ThemeColors {
++  std::map<std::string, uint32_t> colors;
++  bool dark = true;
++};
++
++// Parses `key = "#rrggbb"` lines and `mode = "dark" | "light"`. Lines that do
++// not parse are skipped. Returns nullopt only when no colour was read at all.
++std::optional<ThemeColors> ParseColorsToml(std::string_view contents);
++
++// Finds the last uncommented `rounding = N` inside a Lua config. Returns
++// nullopt when the file does not set one. The value is clamped to
++// [0, kMaxRadius].
++std::optional<int> ParseRoundingLua(std::string_view contents);
++
++// Parses a `#rrggbb` string. Returns nullopt for any other shape.
++std::optional<uint32_t> ParseHexColor(std::string_view text);
++
++}  // namespace omarchy
++
++#endif  // CHROME_BROWSER_OMARCHY_OMARCHY_THEME_PARSE_H_
+diff --git a/chrome/browser/omarchy/omarchy_theme_parse.cc b/chrome/browser/omarchy/omarchy_theme_parse.cc
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/omarchy/omarchy_theme_parse.cc
+@@ -0,0 +1,161 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/omarchy/omarchy_theme_parse.h"
++
++#include <algorithm>
++#include <cctype>
++#include <vector>
++
++namespace omarchy {
++namespace {
++
++std::string_view Trim(std::string_view s) {
++  while (!s.empty() && std::isspace(static_cast<unsigned char>(s.front()))) {
++    s.remove_prefix(1);
++  }
++  while (!s.empty() && std::isspace(static_cast<unsigned char>(s.back()))) {
++    s.remove_suffix(1);
++  }
++  return s;
++}
++
++// Splits `contents` into lines without the trailing newline.
++std::vector<std::string_view> SplitLines(std::string_view contents) {
++  std::vector<std::string_view> lines;
++  while (!contents.empty()) {
++    size_t end = contents.find('\n');
++    std::string_view line = contents.substr(0, end);
++    if (!line.empty() && line.back() == '\r') {
++      line.remove_suffix(1);
++    }
++    lines.push_back(line);
++    if (end == std::string_view::npos) {
++      break;
++    }
++    contents.remove_prefix(end + 1);
++  }
++  return lines;
++}
++
++// Returns the value of `key = value` with surrounding quotes removed, or
++// nullopt when the line is not an assignment to `key`.
++std::optional<std::string_view> ParseAssignment(std::string_view line,
++                                                std::string_view key) {
++  line = Trim(line);
++  if (line.substr(0, key.size()) != key) {
++    return std::nullopt;
++  }
++  std::string_view rest = Trim(line.substr(key.size()));
++  if (rest.empty() || rest.front() != '=') {
++    return std::nullopt;
++  }
++  rest = Trim(rest.substr(1));
++  if (rest.size() >= 2 && (rest.front() == '"' || rest.front() == '\'') &&
++      rest.back() == rest.front()) {
++    rest = rest.substr(1, rest.size() - 2);
++  }
++  return rest;
++}
++
++}  // namespace
++
++std::optional<uint32_t> ParseHexColor(std::string_view text) {
++  if (text.size() != 7 || text.front() != '#') {
++    return std::nullopt;
++  }
++  uint32_t value = 0;
++  for (char c : text.substr(1)) {
++    value <<= 4;
++    if (c >= '0' && c <= '9') {
++      value |= static_cast<uint32_t>(c - '0');
++    } else if (c >= 'a' && c <= 'f') {
++      value |= static_cast<uint32_t>(c - 'a' + 10);
++    } else if (c >= 'A' && c <= 'F') {
++      value |= static_cast<uint32_t>(c - 'A' + 10);
++    } else {
++      return std::nullopt;
++    }
++  }
++  return value;
++}
++
++std::optional<ThemeColors> ParseColorsToml(std::string_view contents) {
++  ThemeColors result;
++  for (std::string_view line : SplitLines(contents)) {
++    line = Trim(line);
++    if (line.empty() || line.front() == '#' || line.front() == '[') {
++      continue;
++    }
++    size_t equals = line.find('=');
++    if (equals == std::string_view::npos) {
++      continue;
++    }
++    std::string_view key = Trim(line.substr(0, equals));
++    std::optional<std::string_view> value = ParseAssignment(line, key);
++    if (!value) {
++      continue;
++    }
++    if (key == "mode") {
++      result.dark = *value != "light";
++      continue;
++    }
++    std::optional<uint32_t> color = ParseHexColor(*value);
++    if (color) {
++      result.colors[std::string(key)] = *color;
++    }
++  }
++  if (result.colors.empty()) {
++    return std::nullopt;
++  }
++  return result;
++}
++
++std::optional<int> ParseRoundingLua(std::string_view contents) {
++  std::optional<int> radius;
++  for (std::string_view line : SplitLines(contents)) {
++    // Drop Lua comments so a commented-out setting is ignored.
++    size_t comment = line.find("--");
++    if (comment != std::string_view::npos) {
++      line = line.substr(0, comment);
++    }
++    line = Trim(line);
++    constexpr std::string_view kKey = "rounding";
++    size_t pos = line.find(kKey);
++    if (pos == std::string_view::npos) {
++      continue;
++    }
++    // Require a word boundary so `rounding_power` does not match.
++    size_t after = pos + kKey.size();
++    if (after < line.size() &&
++        (std::isalnum(static_cast<unsigned char>(line[after])) ||
++         line[after] == '_')) {
++      continue;
++    }
++    std::string_view rest = Trim(line.substr(after));
++    if (rest.empty() || rest.front() != '=') {
++      continue;
++    }
++    rest = Trim(rest.substr(1));
++    // Accept an optional trailing comma, as in `rounding = 6,`.
++    if (!rest.empty() && rest.back() == ',') {
++      rest = Trim(rest.substr(0, rest.size() - 1));
++    }
++    if (rest.empty() ||
++        !std::all_of(rest.begin(), rest.end(), [](char c) {
++          return std::isdigit(static_cast<unsigned char>(c));
++        }) ||
++        rest.size() > 4) {
++      continue;
++    }
++    int value = 0;
++    for (char c : rest) {
++      value = value * 10 + (c - '0');
++    }
++    radius = std::clamp(value, 0, kMaxRadius);
++  }
++  return radius;
++}
++
++}  // namespace omarchy
+diff --git a/chrome/browser/omarchy/omarchy_theme_unittest.cc b/chrome/browser/omarchy/omarchy_theme_unittest.cc
+new file mode 100644
+--- /dev/null
++++ b/chrome/browser/omarchy/omarchy_theme_unittest.cc
+@@ -0,0 +1,136 @@
++// Copyright 2026 The Helium Authors
++// You can use, redistribute, and/or modify this source code under
++// the terms of the GPL-3.0 license that can be found in the LICENSE file.
++
++#include "chrome/browser/omarchy/omarchy_theme.h"
++
++#include "base/files/file_util.h"
++#include "base/files/scoped_temp_dir.h"
++#include "base/test/task_environment.h"
++#include "testing/gtest/include/gtest/gtest.h"
++
++namespace omarchy {
++namespace {
++
++class CountingObserver : public OmarchyTheme::Observer {
++ public:
++  void OnOmarchyThemeChanged() override { ++count_; }
++  int count() const { return count_; }
++
++ private:
++  int count_ = 0;
++};
++
++class OmarchyThemeTest : public testing::Test {
++ protected:
++  void SetUp() override {
++    ASSERT_TRUE(home_.CreateUniqueTempDir());
++    paths_ = OmarchyTheme::Paths::ForHome(home_.GetPath());
++    ASSERT_TRUE(base::CreateDirectory(paths_.theme_dir));
++    ASSERT_TRUE(base::CreateDirectory(paths_.user_lua.DirName()));
++  }
++
++  void Write(const base::FilePath& path, const char* contents) {
++    ASSERT_TRUE(base::WriteFile(path, contents));
++  }
++
++  // Reloads and waits for the background read and its reply.
++  void Reload(OmarchyTheme& theme) {
++    theme.Reload();
++    task_environment_.RunUntilIdle();
++  }
++
++  base::test::TaskEnvironment task_environment_;
++  base::ScopedTempDir home_;
++  OmarchyTheme::Paths paths_;
++};
++
++TEST_F(OmarchyThemeTest, LoadsPaletteAndRadiusFromTheme) {
++  Write(paths_.theme_dir.Append("colors.toml"),
++        "mode = \"dark\"\nbackground = \"#1e1e2e\"\n");
++  Write(paths_.theme_lua, "hl.config({ decoration = { rounding = 6 } })\n");
++
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++
++  EXPECT_TRUE(theme.has_theme());
++  EXPECT_TRUE(theme.colors().dark);
++  EXPECT_EQ(theme.colors().colors.at("background"), 0x1e1e2eu);
++  EXPECT_EQ(theme.radius(), 6);
++}
++
++TEST_F(OmarchyThemeTest, LightThemeIsReported) {
++  Write(paths_.theme_dir.Append("colors.toml"),
++        "mode = \"light\"\nbackground = \"#f4f1e8\"\n");
++
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++
++  EXPECT_TRUE(theme.has_theme());
++  EXPECT_FALSE(theme.colors().dark);
++}
++
++TEST_F(OmarchyThemeTest, MissingFilesMeanStockBehaviour) {
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++
++  EXPECT_FALSE(theme.has_theme());
++  EXPECT_EQ(theme.radius(), 0);
++}
++
++TEST_F(OmarchyThemeTest, UserLooknfeelOverridesThemeRadius) {
++  Write(paths_.theme_lua, "rounding = 6\n");
++  Write(paths_.user_lua, "rounding = 12\n");
++
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++
++  EXPECT_EQ(theme.radius(), 12);
++}
++
++TEST_F(OmarchyThemeTest, RadiusIsClampedToMaximum) {
++  Write(paths_.user_lua, "rounding = 500\n");
++
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++
++  EXPECT_EQ(theme.radius(), kMaxRadius);
++}
++
++TEST_F(OmarchyThemeTest, MalformedColoursKeepPreviousPalette) {
++  Write(paths_.theme_dir.Append("colors.toml"),
++        "background = \"#1e1e2e\"\n");
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++  ASSERT_TRUE(theme.has_theme());
++
++  Write(paths_.theme_dir.Append("colors.toml"), "background = \"#zz\"\n");
++  Reload(theme);
++
++  EXPECT_TRUE(theme.has_theme());
++  EXPECT_EQ(theme.colors().colors.at("background"), 0x1e1e2eu);
++}
++
++TEST_F(OmarchyThemeTest, ObserversNotifiedOnlyOnChange) {
++  Write(paths_.theme_dir.Append("colors.toml"),
++        "background = \"#1e1e2e\"\n");
++  OmarchyTheme theme(paths_);
++  CountingObserver observer;
++  theme.AddObserver(&observer);
++
++  Reload(theme);
++  EXPECT_EQ(observer.count(), 1);
++
++  // Same files again: nothing changed, so no notification.
++  Reload(theme);
++  EXPECT_EQ(observer.count(), 1);
++
++  Write(paths_.user_lua, "rounding = 8\n");
++  Reload(theme);
++  EXPECT_EQ(observer.count(), 2);
++
++  theme.RemoveObserver(&observer);
++}
++
++}  // namespace
++}  // namespace omarchy
+--- a/chrome/browser/BUILD.gn
++++ b/chrome/browser/BUILD.gn
+@@ -870,6 +870,8 @@
+     "intranet_redirect_detector.cc",
+     "memory_details.cc",
+     "net_benchmarking.cc",
++    "omarchy/omarchy_theme.cc",
++    "omarchy/omarchy_theme_parse.cc",
+     "platform_util_internal.cc",
+     "process_resource_usage.cc",
+     "process_singleton_internal.cc",
+@@ -4127,6 +4129,7 @@
+     "font_family_cache_unittest.cc",
+     "font_pref_change_notifier_unittest.cc",
+     "logging_chrome_unittest.cc",
++    "omarchy/omarchy_theme_unittest.cc",
+     "renderer_preferences_util_unittest.cc",
+     "resources_util_unittest.cc",
+     "services_unittest.cc",
