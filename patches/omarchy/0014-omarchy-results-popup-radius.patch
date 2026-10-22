@@ -1,0 +1,53 @@
+--- a/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h
++++ b/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.h
+@@ -87,6 +87,8 @@
+   // True when the WebUI paints the popup's background, rounded corners and
+   // drop shadow instead of this frame. Determined at construction.
+   bool draw_shadow_in_webui_ = false;
++  // Whether the rounded search box setting is on. Read once at construction.
++  bool rounded_omnibox_ = true;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_OMNIBOX_ROUNDED_OMNIBOX_RESULTS_FRAME_H_
+--- a/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
++++ b/chrome/browser/ui/views/omnibox/rounded_omnibox_results_frame.cc
+@@ -12,6 +12,7 @@
+ #include "build/build_config.h"
+ #include "chrome/browser/themes/theme_service.h"
+ #include "chrome/browser/ui/color/chrome_color_id.h"
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/layout_constants.h"
+ #include "chrome/common/pref_names.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+@@ -235,7 +236,19 @@
+     LocationBar* location_bar,
+     bool forward_mouse_events)
+     : contents_(contents), forward_mouse_events_(forward_mouse_events) {
+-  const int corner_radius = 12;
++  // The popup follows the Omarchy theme radius. The search box setting turns it
++  // off, so the popup is square too.
++  rounded_omnibox_ =
++      !location_bar || location_bar->GetProfile()->GetPrefs()->GetBoolean(
++                           prefs::kHeliumRoundedOmnibox);
++  int corner_radius = 12;
++  omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
++  if (theme->has_theme()) {
++    corner_radius = theme->radius();
++  }
++  if (!rounded_omnibox_) {
++    corner_radius = 0;
++  }
+   auto* webui_content = GetOmniboxPopupWebUIBaseContent();
+   // When the page paints the popup's shadow, this frame must not paint a
+   // background, rounded corners or a shadow: the renderer draws all of them,
+@@ -361,9 +374,7 @@
+ void RoundedOmniboxResultsFrame::SetElevation(int elevation) {
+   int corner_radius = views::LayoutProvider::Get()->GetCornerRadiusMetric(
+       views::ShapeContextTokens::kOmniboxExpandedRadius);
+-  // The rounded search box setting also squares the results dropdown.
+-  if (browser_view_ && !browser_view_->GetProfile()->GetPrefs()->GetBoolean(
+-                           prefs::kHeliumRoundedOmnibox)) {
++  if (!rounded_omnibox_) {
+     corner_radius = 0;
+   }
+   auto border = std::make_unique<views::BubbleBorder>(
