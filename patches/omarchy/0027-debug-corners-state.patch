@@ -1,0 +1,26 @@
+--- a/chrome/browser/omarchy/omarchy_theme_bridge.cc
++++ b/chrome/browser/omarchy/omarchy_theme_bridge.cc
+@@ -79,8 +79,10 @@
+  private:
+   // Applies the profile's Rounded corners setting to the theme radius.
+   void ApplyCornersPref() {
+-    OmarchyTheme::GetInstance()->SetCornersEnabled(
+-        profile_->GetPrefs()->GetBoolean(prefs::kHeliumRoundedFrame));
++    // TEMPORARY DEBUG (remove with patch 0027)
++    const bool pref = profile_->GetPrefs()->GetBoolean(prefs::kHeliumRoundedFrame);
++    LOG(INFO) << "omarchy-corners pref=" << pref;
++    OmarchyTheme::GetInstance()->SetCornersEnabled(pref);
+   }
+ 
+   // Re-applies the palette only if something else replaced it.
+--- a/chrome/browser/omarchy/omarchy_theme.cc
++++ b/chrome/browser/omarchy/omarchy_theme.cc
+@@ -172,6 +172,8 @@
+ }
+ 
+ void OmarchyTheme::SetCornersEnabled(bool enabled) {
++  // TEMPORARY DEBUG (remove with patch 0027)
++  LOG(INFO) << "omarchy-corners set enabled=" << enabled << " has_theme=" << has_theme_;
+   if (corners_enabled_ == enabled) {
+     return;
+   }
