@@ -1,0 +1,35 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.h
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.h
+@@ -49,6 +49,7 @@
+   // Palette entries used by AddColorMixers(), when the theme provides them.
+   std::optional<SkColor> accent_;
+   std::optional<SkColor> foreground_;
++  std::optional<SkColor> bright_foreground_;
+ };
+ 
+ }  // namespace omarchy
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -75,6 +75,10 @@
+   if (auto it = theme.colors.find("foreground"); it != theme.colors.end()) {
+     foreground_ = to_sk(it->second);
+   }
++  if (auto it = theme.colors.find("bright_foreground");
++      it != theme.colors.end()) {
++    bright_foreground_ = to_sk(it->second);
++  }
+ }
+ 
+ OmarchyThemeSupplier::~OmarchyThemeSupplier() = default;
+@@ -95,6 +99,11 @@
+     mixer[ui::kColorSysOnSurface] = {*foreground_};
+     mixer[kColorToolbarButtonIcon] = {*foreground_};
+   }
++  if (bright_foreground_) {
++    // Inactive tab titles, including the vertical sidebar, read as bright text.
++    mixer[kColorTabForegroundInactiveFrameActive] = {*bright_foreground_};
++    mixer[kColorTabForegroundInactiveFrameInactive] = {*bright_foreground_};
++  }
+ }
+ 
+ bool OmarchyThemeSupplier::GetColor(int id, SkColor* color) const {
