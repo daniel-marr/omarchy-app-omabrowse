@@ -1,0 +1,53 @@
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.h
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.h
+@@ -8,6 +8,7 @@
+ #include <stddef.h>
+ 
+ #include <memory>
++#include <optional>
+ #include <string>
+ #include <string_view>
+ #include <vector>
+@@ -154,7 +155,8 @@
+       gfx::Size size,
+       SkBlendMode blend_mode = SkBlendMode::kSrcOver,
+       bool antialias = true,
+-      bool should_border_scale = false);
++      bool should_border_scale = false,
++      std::optional<int> radius_override = std::nullopt);
+ 
+   // Returns the delegate.
+   Delegate* delegate() const { return delegate_; }
+--- a/chrome/browser/ui/views/location_bar/location_bar_view.cc
++++ b/chrome/browser/ui/views/location_bar/location_bar_view.cc
+@@ -247,6 +247,9 @@
+     pref_registrar_->Add(omnibox::kShowAiModeOmniboxButton,
+                          base::BindRepeating(&LocationBarView::OnChanged,
+                                              base::Unretained(this)));
++    pref_registrar_->Add(prefs::kHeliumRoundedOmnibox,
++                         base::BindRepeating(&LocationBarView::OnChanged,
++                                             base::Unretained(this)));
+   }
+ 
+   run_omnibox_context_menu_callback_ =
+@@ -589,8 +592,9 @@
+     gfx::Size size,
+     SkBlendMode blend_mode,
+     bool antialias,
+-    bool should_border_scale) {
+-  const int radius = ComputeBorderRadius(size);
++    bool should_border_scale,
++    std::optional<int> radius_override) {
++  const int radius = radius_override.value_or(ComputeBorderRadius(size));
+   auto painter =
+       stroke_color == SK_ColorTRANSPARENT
+           ? views::Painter::CreateSolidRoundRectPainter(
+@@ -1513,7 +1517,7 @@
+     SetBackground(CreateRoundRectBackground(
+         background_color_, border_color, size(),
+         /*blend_mode=*/SkBlendMode::kSrcOver,
+-        /*antialias=*/true, /*should_border_scale=*/true));
++        /*antialias=*/true, /*should_border_scale=*/true, GetBorderRadius()));
+   }
+ 
+   // The location bar already paints the background behind the text field.
