@@ -1,0 +1,24 @@
+--- a/chrome/browser/ui/tabs/tab_style.cc
++++ b/chrome/browser/ui/tabs/tab_style.cc
+@@ -2,6 +2,7 @@
+ // Use of this source code is governed by a BSD-style license that can be
+ // found in the LICENSE file.
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/tabs/tab_style.h"
+ 
+ #include <array>
+@@ -100,11 +101,11 @@
+ }
+ 
+ int TabStyle::GetTopCornerRadius() const {
+-  return 8;
++  return omarchy::ScaledCornerRadius(8);
+ }
+ 
+ int TabStyle::GetBottomCornerRadius() const {
+-  return 8;
++  return omarchy::ScaledCornerRadius(8);
+ }
+ 
+ int TabStyle::GetTabOverlap() const {
