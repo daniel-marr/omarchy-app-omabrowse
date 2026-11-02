@@ -1,0 +1,92 @@
+--- a/chrome/browser/omarchy/omarchy_theme_bridge.h
++++ b/chrome/browser/omarchy/omarchy_theme_bridge.h
+@@ -8,11 +8,13 @@
+ #include <map>
+ #include <memory>
+ 
++#include "base/scoped_multi_source_observation.h"
+ #include "base/scoped_observation.h"
+ #include "chrome/browser/omarchy/omarchy_theme.h"
++#include "chrome/browser/profiles/profile.h"
+ #include "chrome/browser/profiles/profile_manager_observer.h"
++#include "chrome/browser/profiles/profile_observer.h"
+ 
+-class Profile;
+ class ProfileManager;
+ 
+ namespace omarchy {
+@@ -22,7 +24,8 @@
+ // Applies the Omarchy palette to every regular profile. It re-applies on theme
+ // changes and whenever a profile's own theme settings replace the palette.
+ class OmarchyThemeBridge : public OmarchyTheme::Observer,
+-                           public ProfileManagerObserver {
++                           public ProfileManagerObserver,
++                           public ProfileObserver {
+  public:
+   explicit OmarchyThemeBridge(ProfileManager* profile_manager);
+   OmarchyThemeBridge(const OmarchyThemeBridge&) = delete;
+@@ -36,11 +39,19 @@
+   void OnProfileAdded(Profile* profile) override;
+   void OnProfileManagerDestroying() override;
+ 
++  // ProfileObserver:
++  void OnProfileWillBeDestroyed(Profile* profile) override;
++
+  private:
+   base::ScopedObservation<ProfileManager, ProfileManagerObserver>
+       profile_manager_observation_{this};
+-  // Keyed by profile pointer. Entries are replaced, never looked up, so a
+-  // reused address cannot collide with a stale entry.
++  // One observation per watched profile, so its watch can be dropped the
++  // moment the profile goes away.
++  base::ScopedMultiSourceObservation<Profile, ProfileObserver>
++      profile_observations_{this};
++  // Keyed by profile pointer. An entry is erased when its profile is destroyed
++  // (Chromium destroys a profile once its last window closes), so a theme
++  // change never reaches a watch whose profile is gone.
+   std::map<Profile*, std::unique_ptr<ProfileThemeWatch>> watches_;
+ };
+ 
+--- a/chrome/browser/omarchy/omarchy_theme_bridge.cc
++++ b/chrome/browser/omarchy/omarchy_theme_bridge.cc
+@@ -45,8 +45,13 @@
+   ProfileThemeWatch& operator=(const ProfileThemeWatch&) = delete;
+   ~ProfileThemeWatch() override = default;
+ 
+-  // Installs the palette if one is available.
++  // Installs the palette if one is available. Does nothing once the profile
++  // has started shutting down: its keyed services are gone by then, and the
++  // bridge drops this watch as part of the same notification.
+   void Apply() {
++    if (!profile_observation_.IsObserving()) {
++      return;
++    }
+     OmarchyTheme* theme = OmarchyTheme::GetInstance();
+     if (!theme->has_theme()) {
+       return;
+@@ -129,6 +134,9 @@
+   if (!profile->IsRegularProfile()) {
+     return;
+   }
++  if (!profile_observations_.IsObservingSource(profile)) {
++    profile_observations_.AddObservation(profile);
++  }
+   watches_[profile] = std::make_unique<ProfileThemeWatch>(profile);
+   watches_[profile]->Apply();
+ }
+@@ -137,6 +145,15 @@
+   profile_manager_observation_.Reset();
+ }
+ 
++void OmarchyThemeBridge::OnProfileWillBeDestroyed(Profile* profile) {
++  // Chromium destroys a regular profile when its last window closes while the
++  // browser keeps running. Its ThemeService is shut down with it, so a watch
++  // left in the map would trip the keyed-service use-after-destroy check on
++  // the next theme change.
++  profile_observations_.RemoveObservation(profile);
++  watches_.erase(profile);
++}
++
+ void StartThemeBridge(ProfileManager* profile_manager) {
+   static base::NoDestructor<OmarchyThemeBridge> bridge(profile_manager);
+ }

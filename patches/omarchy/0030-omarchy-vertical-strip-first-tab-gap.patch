@@ -1,0 +1,58 @@
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.h
+@@ -105,6 +105,7 @@
+                                  bool below_toolbar);
+ 
+   void UpdateInteriorMargin();
++  void OnThemeChanged() override;
+ 
+   // views::LayoutDelegate:
+   views::ProposedLayout CalculateProposedLayout(
+--- a/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
++++ b/chrome/browser/ui/views/frame/vertical_tab_strip_region_view.cc
+@@ -38,6 +38,7 @@
+ #include "chrome/browser/ui/views/frame/base_tab_strip_region_view.h"
+ #include "chrome/browser/ui/views/frame/browser_view.h"
+ #include "chrome/browser/ui/view_ids.h"
++#include "chrome/browser/omarchy/omarchy_theme.h"
+ #include "chrome/browser/ui/views/frame/custom_corners_background.h"
+ #include "chrome/browser/ui/views/frame/frame_separator.h"
+ #include "chrome/browser/ui/views/frame/safe_invoke/safe_invoke.h"
+@@ -884,10 +885,25 @@
+   return BaseTabStripRegionView::RemoveTabStripView(view);
+ }
+ 
++void VerticalTabStripRegionView::OnThemeChanged() {
++  views::View::OnThemeChanged();
++  // The gap above the first tab depends on the theme's corner state.
++  UpdateInteriorMargin();
++}
++
+ void VerticalTabStripRegionView::UpdateInteriorMargin() {
+   const int padding = GetLayoutConstant(
+       LayoutConstant::kVerticalTabStripUncollapsedVerticalPadding);
++  // With an Omarchy theme the strip sits flush under the toolbar, so keep a
++  // small fixed gap above the first tab. Rounded pills read one DIP tighter
++  // than square ones, so give them one more.
++  constexpr int kTopGap = 4;
++  const int corner_radius =
++      GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius);
+   int top_padding = 0;
++  if (omarchy::OmarchyTheme::GetInstance()->has_theme()) {
++    top_padding = corner_radius == 0 ? kTopGap : kTopGap + 1;
++  }
+   BrowserView* const browser = browser_view();
+   if (browser && browser->IsZenModeEnabledForLayout()) {
+     const float top_chrome_ratio = browser->GetTopChromeRevealRatio();
+@@ -897,8 +913,9 @@
+         !browser->IsZenModeSideChromePinned() || !top_chrome_visible_or_pinned
+             ? 1.0f
+             : 1.0f - top_chrome_ratio;
+-    top_padding = base::ClampRound(
+-        GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius) * ratio);
++    if (corner_radius != 0) {
++      top_padding = base::ClampRound(corner_radius * ratio);
++    }
+   }
+ 
+   interior_margin_ = gfx::Insets::TLBR(top_padding, 0, padding, 0);

@@ -25,6 +25,8 @@ helium_substitution
 helium_apply_translations
 helium_version
 helium_resources
+"$_root_dir/scripts/apply-branding.sh" "$_src_dir"
+"$_root_dir/scripts/apply-resources.sh" "$_src_dir"
 write_gn_args
 gn_gen
 build

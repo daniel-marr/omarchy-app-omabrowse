@@ -1,0 +1,13 @@
+--- a/components/helium_onboarding/src/pages/Welcome.svelte
++++ b/components/helium_onboarding/src/pages/Welcome.svelte
+@@ -27,8 +27,8 @@
+ 
+     const visible = $derived($currentPage === "Welcome");
+ 
+-    const privacyUrl = "https://helium.computer/privacy";
+-    const termsUrl = "https://helium.computer/terms";
++    const privacyUrl = "https://github.com/daniel-marr/omarchy-app-omabrowse/blob/main/README.md#privacy";
++    const termsUrl = "https://github.com/daniel-marr/omarchy-app-omabrowse/blob/main/README.md#terms";
+     const LOGO_TRANSITION_DELAY_MS = ONBOARDING_INTRO_DELAY_MS + 1600;
+     const termsParts = parseLocalizedString(s.welcome.terms);
+ 

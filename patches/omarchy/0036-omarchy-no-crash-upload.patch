@@ -1,0 +1,15 @@
+--- a/components/crash/core/app/crash_reporter_client.cc
++++ b/components/crash/core/app/crash_reporter_client.cc
+@@ -153,11 +153,8 @@
+   }
+ #endif
+ 
+-#if defined(OFFICIAL_BUILD)
+-  return "https://crash.helium.computer/crash";
+-#else
++  // OmaBrowse does not upload crash reports to Helium's servers.
+   return std::string();
+-#endif
+ }
+ 
+ bool CrashReporterClient::ShouldRateLimitUploads() {

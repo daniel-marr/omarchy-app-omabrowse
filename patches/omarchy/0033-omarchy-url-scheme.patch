@@ -1,0 +1,228 @@
+--- a/chrome/app/chromeos_strings.grdp
++++ b/chrome/app/chromeos_strings.grdp
+@@ -653,7 +653,7 @@
+     WiFi Direct
+   </message>
+   <message name="IDS_NETWORK_UI_AUTO_REFRESH" desc="Instructions for how to auto-refresh the page">
+-    Add a query param in URL to auto-refresh the page: helium://network/?refresh=&lt;sec&gt;
++    Add a query param in URL to auto-refresh the page: omabrowse://network/?refresh=&lt;sec&gt;
+   </message>
+   <message name="IDS_NETWORK_UI_REFRESH" desc="Button label for refreshing networks">
+     Refresh Networks
+--- a/chrome/app/generated_resources.grd
++++ b/chrome/app/generated_resources.grd
+@@ -9096,13 +9096,13 @@
+ 
+       <!-- Extensions NTP Middle Slot Promo -->
+       <message name="IDS_EXTENSIONS_PROMO_PERFORMANCE">
+-        Web browsing should be fast. Take a moment to <ph name="BEGIN_LINK">&lt;a href="helium://extensions"&gt;</ph>check your extensions<ph name="END_LINK">&lt;/a&gt;</ph> now.
++        Web browsing should be fast. Take a moment to <ph name="BEGIN_LINK">&lt;a href="omabrowse://extensions"&gt;</ph>check your extensions<ph name="END_LINK">&lt;/a&gt;</ph> now.
+       </message>
+       <message name="IDS_EXTENSIONS_PROMO_PRIVACY">
+-        Safety matters. Take a moment and <ph name="BEGIN_LINK">&lt;a href="helium://extensions"&gt;</ph>check your extensions now<ph name="END_LINK">&lt;/a&gt;</ph>
++        Safety matters. Take a moment and <ph name="BEGIN_LINK">&lt;a href="omabrowse://extensions"&gt;</ph>check your extensions now<ph name="END_LINK">&lt;/a&gt;</ph>
+       </message>
+       <message name="IDS_EXTENSIONS_PROMO_NEUTRAL">
+-        Got extensions? <ph name="BEGIN_LINK">&lt;a href="helium://extensions"&gt;</ph>Manage your extensions<ph name="END_LINK">&lt;/a&gt;</ph> in one easy place.
++        Got extensions? <ph name="BEGIN_LINK">&lt;a href="omabrowse://extensions"&gt;</ph>Manage your extensions<ph name="END_LINK">&lt;/a&gt;</ph> in one easy place.
+       </message>
+ 
+       <!-- New Tab Footer -->
+@@ -17162,10 +17162,10 @@
+         Device Log
+       </message>
+       <message name="IDS_DEVICE_AUTO_REFRESH" desc="Instructions for how to auto-refresh the page">
+-        Add a query param in URL to auto-refresh the page: helium://device-log/?refresh=&lt;sec&gt;
++        Add a query param in URL to auto-refresh the page: omabrowse://device-log/?refresh=&lt;sec&gt;
+       </message>
+       <message name="IDS_DEVICE_SELECT_TYPES" desc="Instructions for how to select types for the page on page load">
+-        Add a query param in the URL to select types on page load. Example: helium://device-log/?types=Bluetooth,USB
++        Add a query param in the URL to select types on page load. Example: omabrowse://device-log/?types=Bluetooth,USB
+       </message>
+       <message name="IDS_DEVICE_LOG_REFRESH" desc="Button to refresh device log entries">
+         Refresh
+--- a/chrome/app/os_settings_strings.grdp
++++ b/chrome/app/os_settings_strings.grdp
+@@ -4283,7 +4283,7 @@
+     End User License Agreement
+   </message>
+   <message name="IDS_SETTINGS_PRINTING_CUPS_EULA_NOTICE_HEADER" desc="The message shown to users if a printer has a EULA agreement attached to it.">
+-    End User License Agreement: <ph name="EULA_LINK">$1<ex>helium://os-credits/#license</ex></ph>
++    End User License Agreement: <ph name="EULA_LINK">$1<ex>omabrowse://os-credits/#license</ex></ph>
+   </message>
+   <message name="IDS_SETTINGS_PRINTING_CUPS_IPP_URI_UNREACHABLE" desc="The message shown on the uri field of the add/edit printer dialogs when attempting to connect to an IPP printer that is not found on the network.">
+     Couldn't detect a printer. Please enter printer address again.
+--- a/chrome/app/password_manager_ui_strings.grdp
++++ b/chrome/app/password_manager_ui_strings.grdp
+@@ -589,8 +589,8 @@
+   </message>
+   <message name="IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_TO_ACCOUNT" desc="Description for the password section entry used for managing passwords.">
+     {COUNT, plural,
+-      =1 {{COUNT} password is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href='helium://password-manager/'&gt;</ph>save it in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
+-      other {{COUNT} passwords are saved only to this device. To use them on your other devices, <ph name="BEGIN_LINK">&lt;a href='helium://password-manager/'&gt;</ph>save them in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}}
++      =1 {{COUNT} password is saved only to this device. To use it on your other devices, <ph name="BEGIN_LINK">&lt;a href='omabrowse://password-manager/'&gt;</ph>save it in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}
++      other {{COUNT} passwords are saved only to this device. To use them on your other devices, <ph name="BEGIN_LINK">&lt;a href='omabrowse://password-manager/'&gt;</ph>save them in your Google Account<ph name="END_LINK">&lt;/a&gt;</ph>.}}
+   </message>
+   <message name="IDS_PASSWORD_MANAGER_UI_MOVE_PASSWORDS_TO_ACCOUNT_DIALOG_DESCRIPTION" desc="Description for the dialog for uploading passwords to account storage.">
+     {COUNT, plural,
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -1661,7 +1661,7 @@
+       </message>
+     </if>
+ 
+-    <!-- Helium Services Privacy Settings (helium://settings/privacy/services) -->
++    <!-- Helium Services Privacy Settings (omabrowse://settings/privacy/services) -->
+     <message name="IDS_SETTINGS_HELIUM_SERVICES" desc="Name of the page which controls connectivity to Helium services">
+       Helium services
+     </message>
+--- a/chrome/browser/resources/tab_search/tab_search_item.ts
++++ b/chrome/browser/resources/tab_search/tab_search_item.ts
+@@ -217,7 +217,7 @@
+     // Show chrome:// if it's a chrome internal url
+     const protocol = new URL(normalizeURL(data.tab.url)).protocol;
+     if (protocol === 'chrome:' || protocol === 'helium:') {
+-      this.$.secondaryTextInner.prepend(document.createTextNode('helium://'));
++      this.$.secondaryTextInner.prepend(document.createTextNode('omabrowse://'));
+     }
+   }
+ 
+--- a/chrome/browser/ui/android/strings/android_chrome_strings.grd
++++ b/chrome/browser/ui/android/strings/android_chrome_strings.grd
+@@ -2205,7 +2205,7 @@
+         Open source licenses
+       </message>
+       <message name="IDS_OPEN_SOURCE_LICENSE_URL" desc="URL for open source license" translateable="false">
+-        helium://credits
++        omabrowse://credits
+       </message>
+       <message name="IDS_GOOGLE_TERMS_OF_SERVICE_TITLE" desc="Title for Google terms of service">
+         Google Terms of Service
+--- a/components/components_chromium_strings.grd
++++ b/components/components_chromium_strings.grd
+@@ -314,7 +314,7 @@
+ 
+       <!-- Internal debug pages disabled interstitial. -->
+       <message name="IDS_INTERNAL_DEBUG_PAGES_DISABLED_BODY" desc="This is the text, with a link, that appears below the heading for the page that appears when the user attempts to load an internal developer debugging page when such pages are disabled by a pref. It instructs the user on how to enable the pref if they wish.">
+-        These pages are intended for use by Helium developers, and may not be actively maintained or tested. To enable them, navigate to <ph name="BEGIN_LINK">&lt;a href="$1"&gt;</ph>helium://chrome-urls<ph name="LINK_END">&lt;/a&gt;</ph>, click the button to enable debug pages, and then navigate to this page again.
++        These pages are intended for use by Helium developers, and may not be actively maintained or tested. To enable them, navigate to <ph name="BEGIN_LINK">&lt;a href="$1"&gt;</ph>omabrowse://chrome-urls<ph name="LINK_END">&lt;/a&gt;</ph>, click the button to enable debug pages, and then navigate to this page again.
+       </message>
+ 
+       <!-- Desktop-to-Mobile Promo Notifications -->
+--- a/components/components_google_chrome_strings.grd
++++ b/components/components_google_chrome_strings.grd
+@@ -305,7 +305,7 @@
+ 
+       <!-- Internal debug pages disabled interstitial. -->
+       <message name="IDS_INTERNAL_DEBUG_PAGES_DISABLED_BODY" desc="This is the text, with a link, that appears below the heading for the page that appears when the user attempts to load an internal developer debugging page when such pages are disabled by a pref. It instructs the user on how to enable the pref if they wish.">
+-        These pages are intended for use by Helium developers, and may not be actively maintained or tested. To enable them, navigate to <ph name="BEGIN_LINK">&lt;a href="$1"&gt;</ph>helium://chrome-urls<ph name="LINK_END">&lt;/a&gt;</ph>, click the button to enable debug pages, and then navigate to this page again.
++        These pages are intended for use by Helium developers, and may not be actively maintained or tested. To enable them, navigate to <ph name="BEGIN_LINK">&lt;a href="$1"&gt;</ph>omabrowse://chrome-urls<ph name="LINK_END">&lt;/a&gt;</ph>, click the button to enable debug pages, and then navigate to this page again.
+       </message>
+ 
+       <!-- Desktop-to-Mobile Promo Notifications -->
+--- a/components/error_page_strings.grdp
++++ b/components/error_page_strings.grdp
+@@ -85,7 +85,7 @@
+     Check your administrator's policies
+   </message>
+   <message name="IDS_ERRORPAGES_SUGGESTION_VIEW_POLICIES_BODY" desc="When a webpage fails to load, sometimes we suggest to the user to view the current policies.  These are instructions below a header.">
+-    Visit &lt;strong&gt;helium://policy&lt;/strong&gt; to see the list of blocked URLs and other policies enforced by your system administrator.
++    Visit &lt;strong&gt;omabrowse://policy&lt;/strong&gt; to see the list of blocked URLs and other policies enforced by your system administrator.
+   </message>
+   <message name="IDS_ERRORPAGES_SUGGESTION_UNSUPPORTED_CIPHER_HEADER" desc="This is the header displayed above the explanation for SSL cipher and version errors.">
+     Unsupported protocol
+--- a/components/management_strings.grdp
++++ b/components/management_strings.grdp
+@@ -227,7 +227,7 @@
+       Which Google Play apps you have installed
+     </message>
+     <message name="IDS_MANAGEMENT_OPEN_CHROME_MANAGEMENT" desc="Message telling users to open chrome://management for additional information.">
+-      For additional information and policies that may apply, open helium://management in your browser.
++      For additional information and policies that may apply, open omabrowse://management in your browser.
+     </message>
+     <message name="IDS_MANAGEMENT_REPORT_FILE_EVENTS" desc="Message stating that administrators may see file information">
+       Recent file access and modifications, including file names, digital fingerprints of the file content, download source, and metadata
+@@ -253,7 +253,7 @@
+       Website cookies (signed-in state on recently visited websites will be preserved)
+     </message>
+     <message name="IDS_MANAGEMENT_DESK_SYNC_OPT_OUT" desc="Message explaining that the user can opt out from the effects of the Desk sync feature in Chrome Sync settings.">
+-      You can opt out of this policy in <ph name="BEGIN_LINK">&lt;a href='helium://settings/syncSetup'&gt;</ph>Helium Sync settings<ph name="END_LINK">&lt;/a&gt;</ph>.
++      You can opt out of this policy in <ph name="BEGIN_LINK">&lt;a href='omabrowse://settings/syncSetup'&gt;</ph>Helium Sync settings<ph name="END_LINK">&lt;/a&gt;</ph>.
+     </message>
+     <message name="IDS_MANAGEMENT_DESK_SYNC_LEARN_MORE" desc="Learn more link for the section about the Desk sync feature to provide additional informaiton">
+       <ph name="BEGIN_LINK">&lt;a target="_blank" href="https://support.google.com/chrome/a?p=office_cookies_sync" &gt;</ph>Learn more<ph name="END_LINK">&lt;/a&gt;</ph>
+--- a/components/new_or_sad_tab_strings.grdp
++++ b/components/new_or_sad_tab_strings.grdp
+@@ -232,7 +232,7 @@
+         Activity monitoring
+       </message>
+       <message name="IDS_NEW_ISOLATED_TAB_ACTIVITY_MONITORING_CONTENT" desc="Description for the activity monitoring card in Isolated mode.">
+-        Certain browsing activity may be monitored by your organization to prevent data loss; go to <ph name="BEGIN_LINK">&lt;a href="helium://management"&gt;</ph>helium://management<ph name="END_LINK">&lt;/a&gt;</ph> for more details
++        Certain browsing activity may be monitored by your organization to prevent data loss; go to <ph name="BEGIN_LINK">&lt;a href="omabrowse://management"&gt;</ph>omabrowse://management<ph name="END_LINK">&lt;/a&gt;</ph> for more details
+       </message>
+       <message name="IDS_NEW_ISOLATED_TAB_BROWSING_DATA_TITLE" desc="Title for the browsing data card in Isolated mode.">
+         Browsing data
+@@ -244,7 +244,7 @@
+         Extensions
+       </message>
+       <message name="IDS_NEW_ISOLATED_TAB_EXTENSIONS_CONTENT" desc="Description for the extensions card in Isolated mode.">
+-        Extensions required by your organization will remain turned on; go to <ph name="BEGIN_LINK">&lt;a href="helium://extensions"&gt;</ph>helium://extensions<ph name="END_LINK">&lt;/a&gt;</ph> for more details
++        Extensions required by your organization will remain turned on; go to <ph name="BEGIN_LINK">&lt;a href="omabrowse://extensions"&gt;</ph>omabrowse://extensions<ph name="END_LINK">&lt;/a&gt;</ph> for more details
+       </message>
+       <message name="IDS_NEW_ISOLATED_TAB_THIRD_PARTY_COOKIES_TITLE" desc="Title for the third-party cookies card in Isolated mode.">
+         Third-party cookies
+--- a/components/omnibox/browser/builtin_provider.cc
++++ b/components/omnibox/browser/builtin_provider.cc
+@@ -74,7 +74,7 @@
+     for (const std::u16string& url :
+          client_->GetBuiltinsToProvideAsUserTypes()) {
+       DCHECK(url.starts_with(u"chrome://"));
+-      AddBuiltinMatch(std::u16string(url).replace(0, 6, u"helium"),
++      AddBuiltinMatch(std::u16string(url).replace(0, 6, u"omabrowse"),
+                       std::u16string(), styles);
+     }
+   } else {
+--- a/components/policy_strings.grdp
++++ b/components/policy_strings.grdp
+@@ -952,7 +952,7 @@
+     Preset
+   </message>
+   <message name="IDS_LOCAL_TEST_POLICIES_ENABLED" desc="Text for banner warning user of test policies being applied">
+-    Test policies have been applied. Review and reset them at helium://policy/test. Admin policies will not be applied.
++    Test policies have been applied. Review and reset them at omabrowse://policy/test. Admin policies will not be applied.
+   </message>
+   <message name="IDS_POLICY_TEST_PRESET_CUSTOM" desc="Text for the custom option of the preset dropdown in the policy test table.">
+     Custom
+--- a/components/url_formatter/url_fixer.cc
++++ b/components/url_formatter/url_fixer.cc
+@@ -39,7 +39,7 @@
+ 
+ // Hardcode these constants to avoid dependences on //chrome and //content.
+ const char kChromeUIScheme[] = "chrome";
+-const char kHeliumUIScheme[] = "helium";
++const char kHeliumUIScheme[] = "omabrowse";
+ const char kDevToolsScheme[] = "devtools";
+ const char kChromeUIDefaultHost[] = "version";
+ const char kViewSourceScheme[] = "view-source";
+--- a/content/public/common/url_constants.h
++++ b/content/public/common/url_constants.h
+@@ -19,7 +19,7 @@
+ inline constexpr char kChromeDevToolsScheme[] = "devtools";
+ inline constexpr char kChromeErrorScheme[] = "chrome-error";
+ inline constexpr char kChromeUIScheme[] = "chrome";  // Used for WebUIs.
+-inline constexpr char kHeliumUIScheme[] = "helium";  // also used for webuis :3
++inline constexpr char kHeliumUIScheme[] = "omabrowse";  // also used for webuis :3
+ inline constexpr char kChromeNativeScheme[] = "chrome-native";
+ inline constexpr char kChromeUIUntrustedScheme[] = "chrome-untrusted";
+ inline constexpr char kViewSourceScheme[] = "view-source";
+--- a/ui/strings/ui_strings.grd
++++ b/ui/strings/ui_strings.grd
+@@ -1080,7 +1080,7 @@
+         Turn on an extension in Incognito:
+       </message>
+       <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_1" desc="First step from the instruction to enable an extension in Incognito mode">
+-        Type <ph name="BEGIN_BOLD">&lt;b&gt;</ph>helium://extensions<ph name="END_BOLD">&lt;/b&gt;</ph> into your browser
++        Type <ph name="BEGIN_BOLD">&lt;b&gt;</ph>omabrowse://extensions<ph name="END_BOLD">&lt;/b&gt;</ph> into your browser
+       </message>
+       <message name="IDS_INCOGNITO_NAVIGATION_INSTRUCTIONS_STEP_2" desc="Second step from the instruction to enable an extension in Incognito mode">
+         Find the extension above

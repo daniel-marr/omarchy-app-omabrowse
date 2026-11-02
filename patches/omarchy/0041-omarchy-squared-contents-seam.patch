@@ -1,0 +1,69 @@
+--- a/chrome/browser/ui/views/frame/multi_contents_view.cc
++++ b/chrome/browser/ui/views/frame/multi_contents_view.cc
+@@ -4,6 +4,9 @@
+ 
+ #include "chrome/browser/ui/views/frame/multi_contents_view.h"
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
++#include "ui/gfx/geometry/outsets.h"
++
+ #include <algorithm>
+ #include <cstdlib>
+ #include <utility>
+@@ -455,6 +458,9 @@
+ void MultiContentsView::OnThemeChanged() {
+   views::View::OnThemeChanged();
+   UpdateContentsBorderAndOverlay();
++  // The Omarchy corners state can change after the first layout (the pref is
++  // applied once the profile loads), and the cached layout must follow it.
++  InvalidateLayout();
+ }
+ 
+ void MultiContentsView::OnFullscreenStateChanged() {
+@@ -566,10 +572,23 @@
+   const bool is_in_split = IsInSplitView();
+   const bool should_use_rounded_frame = ShouldUseRoundedFrame();
+   const AttachedChromeEdges attached_chrome = GetAttachedChromeEdges();
++  // With squared Omarchy corners the rounded-frame path is off, so nothing
++  // opaque sits under the contents and the fractional-scale seam below the
++  // toolbar shows the wallpaper. Keep the toolbar-coloured background there.
++  const bool fill_squared_background =
++      omarchy::OmarchyTheme::GetInstance()->corners_squared();
+   const bool show_background = drop_target_view_->GetVisible() || is_in_split ||
+-                               should_use_rounded_frame;
++                               should_use_rounded_frame ||
++                               fill_squared_background;
++  gfx::Rect background_bounds = available_space;
++  if (omarchy::OmarchyTheme::GetInstance()->has_theme()) {
++    // Straddle the toolbar/contents boundary by one DIP so this layer covers
++    // the device row that non-anti-aliased toolbar paint rounds away at
++    // fractional scale factors. Applies to both corner modes.
++    background_bounds.Outset(gfx::Outsets::TLBR(1, 0, 0, 0));
++  }
+   layouts.child_layouts.emplace_back(background_view_.get(), show_background,
+-                                     available_space);
++                                     background_bounds);
+ 
+   if (IsDragAndDropEnabled()) {
+     available_space = CalculateDropTargetLayout(
+@@ -779,13 +798,17 @@
+   const int width = available_space.width();
+   const int height = available_space.height();
+ 
++  // Squared Omarchy corners fill this edge with the toolbar colour instead of
++  // the stock separator line.
++  const bool show_top_separator =
++      contents_separators_.should_show_top &&
++      !omarchy::OmarchyTheme::GetInstance()->corners_squared();
+   const int separator_height =
+-      contents_separators_.should_show_top
++      show_top_separator
+           ? contents_separators_.top_separator->GetPreferredSize().height()
+           : 0;
+   child_layouts.emplace_back(
+-      contents_separators_.top_separator.get(),
+-      contents_separators_.should_show_top,
++      contents_separators_.top_separator.get(), show_top_separator,
+       gfx::Rect(available_space.origin(), {width, separator_height}));
+ 
+   const bool should_show_leading =

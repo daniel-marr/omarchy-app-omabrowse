@@ -1,0 +1,57 @@
+--- a/chrome/app/chromium_strings.grd
++++ b/chrome/app/chromium_strings.grd
+@@ -511,10 +511,10 @@
+         </then>
+         <else>
+           <message name="IDS_ABOUT_VERSION_COMPANY_NAME" desc="Company name on the about pages">
+-            The Helium Authors
++            The OmaBrowse Authors
+           </message>
+           <message name="IDS_ABOUT_VERSION_COPYRIGHT" desc="Copyright information on the about pages">
+-            Copyright <ph name="YEAR">{0,date,y}<ex>2016</ex></ph> The Helium Authors. All rights reserved.
++            Copyright <ph name="YEAR">{0,date,y}<ex>2016</ex></ph> The OmaBrowse Authors. All rights reserved.
+           </message>
+         </else>
+       </if>
+--- a/components/components_chromium_strings.grd
++++ b/components/components_chromium_strings.grd
+@@ -274,16 +274,16 @@
+       </message>
+ 
+       <message name="IDS_VERSION_UI_LICENSE" desc="The label below the copyright message, containing the URLs.">
+-        Helium is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1" aria-description="$3"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project and other <ph name="BEGIN_LINK_OSS">&lt;a target="_blank" href="$2" aria-description="$3"&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
++        OmaBrowse is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1" aria-description="$3"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project and other <ph name="BEGIN_LINK_OSS">&lt;a target="_blank" href="$2" aria-description="$3"&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
+       </message>
+ 
+       <if expr="is_chromeos">
+         <message name="IDS_VERSION_UI_LICENSE_CHROMIUM" desc="The label below the copyright message, containing the link to the Chromium project.">
+-          Helium is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project.
++          OmaBrowse is made possible by the <ph name="BEGIN_LINK_CHROMIUM">&lt;a target="_blank" href="$1"&gt;</ph>Chromium<ph name="END_LINK_CHROMIUM">&lt;/a&gt;</ph> open source project.
+         </message>
+ 
+         <message name="IDS_VERSION_UI_LICENSE_OTHER" desc="The label below the copyright message, containing the link to other open source software.">
+-          Helium is also made possible by other <ph name="BEGIN_LINK_OSS">&lt;a href='#'&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
++          OmaBrowse is also made possible by other <ph name="BEGIN_LINK_OSS">&lt;a href='#'&gt;</ph>open source software<ph name="END_LINK_OSS">&lt;/a&gt;</ph>.
+         </message>
+       </if>
+ 
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -1702,7 +1702,7 @@
+       Allow connecting to OmaBrowse services
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_TOGGLE_DESCRIPTION" desc="Description of the toggle for enabling/disabling of all OmaBrowse services">
+-      When enabled, OmaBrowse connects directly to the providers behind these features: the Chrome Web Store for extensions, Google's component update server, Google's dictionary host, and the sites that publish uBlock Origin filter lists. No OmaBrowse or Helium server sits in between. When disabled, these features will not work.
++      When enabled, OmaBrowse connects directly to the providers behind these features: the Chrome Web Store for extensions, Google's component update server, Google's dictionary host, and the sites that publish uBlock Origin filter lists. No OmaBrowse server sits in between. When disabled, these features will not work.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_EXT_PROXY_TOGGLE" desc="Toggle for enabling/disabling of downloading and proxying extensions">
+       Allow extension downloads and updates
+@@ -1748,7 +1748,7 @@
+       Route through a self-hosted services instance
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION" desc="Description of the text input for overriding the OmaBrowse services server">
+-      Leave this empty to connect directly to each provider. To route everything through a self-hosted instance of helium-services instead, enter its HTTPS origin here.
++      Leave this empty to connect directly to each provider. To route everything through a self-hosted instance of OmaBrowse services instead, enter its HTTPS origin here.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION_WARNING" desc="Warning section of description for overriding the OmaBrowse services server">
+       Only enter a server you run yourself. Never paste a URL someone else gave you: that server would see every extension, component and filter-list request this browser makes.

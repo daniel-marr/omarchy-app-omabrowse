@@ -1,0 +1,19 @@
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -145,9 +145,14 @@
+   }
+ 
+   state.vertical_tab_strip_padding = kZenModeVTSPadding;
++  const int frame_radius = GetGenericFrameRadius();
++  // With squared corners the radius term is 0, so keep the same breathing room
++  // above the strip that the bottom padding gives it.
+   const int revealed_top_padding =
+-      std::max(0, GetGenericFrameRadius() -
+-                      GetLayoutConstant(LayoutConstant::kHeliumBasePadding));
++      frame_radius == 0
++          ? kZenModeVTSPadding
++          : std::max(0, frame_radius - GetLayoutConstant(
++                                           LayoutConstant::kHeliumBasePadding));
+   if (delegate.IsZenModeTopChromePinned()) {
+     state.vertical_tab_strip_top_padding = revealed_top_padding;
+   } else {

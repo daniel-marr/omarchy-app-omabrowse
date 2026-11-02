@@ -1,0 +1,40 @@
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.h
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.h
+@@ -269,6 +269,7 @@
+   gfx::Size GetMinimumSize() const override;
+   void Layout(PassKey) override;
+   void OnThemeChanged() override;
++  void OnPaint(gfx::Canvas* canvas) override;
+   bool AcceleratorPressed(const ui::Accelerator& acc) override;
+   void ChildPreferredSizeChanged(views::View* child) override;
+   void ChildVisibilityChanged(View* child) override;
+--- a/chrome/browser/ui/views/toolbar/toolbar_view.cc
++++ b/chrome/browser/ui/views/toolbar/toolbar_view.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/toolbar/toolbar_view.h"
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
++
+ #include <algorithm>
+ #include <memory>
+ #include <utility>
+@@ -1796,6 +1798,18 @@
+   LayoutSuperclass<AccessiblePaneView>(this);
+ }
+ 
++void ToolbarView::OnPaint(gfx::Canvas* canvas) {
++  views::AccessiblePaneView::OnPaint(canvas);
++  // At fractional scale factors the toolbar's bottom edge can land mid-pixel;
++  // the row below is then painted by nobody and shows the wallpaper. The
++  // layout grants a 2 DP bottom paint allowance for exactly this, so own one
++  // extra DIP in the toolbar colour. Views placed below draw over it.
++  if (omarchy::OmarchyTheme::GetInstance()->has_theme()) {
++    canvas->FillRect(gfx::Rect(0, height(), width(), 1),
++                     GetColorProvider()->GetColor(kColorToolbar));
++  }
++}
++
+ void ToolbarView::OnThemeChanged() {
+   views::AccessiblePaneView::OnThemeChanged();
+   if (!initialized_) {

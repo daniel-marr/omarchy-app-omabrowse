@@ -1,0 +1,13 @@
+--- a/chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.cc
++++ b/chrome/browser/ui/toolbar/chrome_location_bar_model_delegate.cc
+@@ -195,9 +195,7 @@
+   }
+ 
+   if (url.SchemeIs(content::kChromeUIScheme)) {
+-    return &(features::IsRoundedIconsEnabled()
+-                 ? omnibox::kChromeProductIcon
+-                 : omnibox::kProductChromeRefreshOldIcon);
++    return &omnibox::kOmabrowseWorldIcon;
+   }
+ 
+   // If there is no active WebContents (which can happen during toolbar

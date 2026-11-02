@@ -1,0 +1,264 @@
+--- a/chrome/browser/omarchy/omarchy_theme.h	2026-11-02 17:39:15.345827394 +1000
++++ b/chrome/browser/omarchy/omarchy_theme.h	2026-11-02 17:40:07.611324055 +1000
+@@ -71,15 +71,17 @@
+   // True once a colours file has parsed. Until then Helium behaves like stock.
+   bool has_theme() const { return has_theme_; }
+   const ThemeColors& colors() const { return colors_; }
+-  // Corner radius in px, always in [0, kMaxRadius]. 0 is Omarchy's default,
+-  // and also what every radius is when corners are turned off.
+-  int radius() const { return corners_enabled_ ? radius_ : 0; }
+-  // Turns all theme radii on or off. Observers are notified on change.
+-  void SetCornersEnabled(bool enabled);
+-  // True when the Rounded corners setting is off and an Omarchy theme is
+-  // present. In that case every corner radius in the UI is 0. Otherwise the
+-  // stock Chromium radii apply.
+-  bool corners_squared() const { return has_theme_ && !corners_enabled_; }
++  // Corner radius in px, always in [0, kMaxRadius]. 0 is Omarchy's default.
++  int radius() const { return radius_; }
++  // The "Always use rounded corners" setting. When set, corners stay rounded
++  // whatever the theme's window rounding is. Observers are notified on change.
++  void SetForceRounded(bool force);
++  // True when an Omarchy theme is present, its window rounding is 0 and
++  // rounded corners are not forced. In that case every corner radius in the
++  // UI is 0. Otherwise the stock radii apply.
++  bool corners_squared() const {
++    return has_theme_ && !force_rounded_ && radius_ == 0;
++  }
+ 
+  private:
+   struct Loaded {
+@@ -95,7 +97,7 @@
+   bool has_theme_ = false;
+   ThemeColors colors_;
+   int radius_ = 0;
+-  bool corners_enabled_ = true;
++  bool force_rounded_ = false;
+   base::ObserverList<Observer> observers_;
+ 
+   // Watchers run on their own sequence. They report back to the UI thread.
+@@ -106,8 +108,8 @@
+   base::WeakPtrFactory<OmarchyTheme> weak_factory_{this};
+ };
+ 
+-// The stock radius, or 0 when the Rounded corners setting is off on an Omarchy
+-// theme. Use it wherever a fixed corner radius is drawn.
++// The stock radius, or 0 when the Omarchy theme squares the corners. Use it
++// wherever a fixed corner radius is drawn.
+ inline int ScaledCornerRadius(int stock) {
+   return OmarchyTheme::GetInstance()->corners_squared() ? 0 : stock;
+ }
+--- a/chrome/browser/omarchy/omarchy_theme.cc	2026-11-02 17:39:15.347798565 +1000
++++ b/chrome/browser/omarchy/omarchy_theme.cc	2026-11-02 17:40:07.623300756 +1000
+@@ -171,11 +171,11 @@
+   return loaded;
+ }
+ 
+-void OmarchyTheme::SetCornersEnabled(bool enabled) {
+-  if (corners_enabled_ == enabled) {
++void OmarchyTheme::SetForceRounded(bool force) {
++  if (force_rounded_ == force) {
+     return;
+   }
+-  corners_enabled_ = enabled;
++  force_rounded_ = force;
+   for (Observer& observer : observers_) {
+     observer.OnOmarchyThemeChanged();
+   }
+--- a/chrome/browser/omarchy/omarchy_theme_bridge.cc	2026-11-02 17:39:15.349801500 +1000
++++ b/chrome/browser/omarchy/omarchy_theme_bridge.cc	2026-11-02 17:40:07.627666776 +1000
+@@ -36,7 +36,7 @@
+   explicit ProfileThemeWatch(Profile* profile) : profile_(profile) {
+     profile_observation_.Observe(profile_);
+     pref_registrar_.Init(profile_->GetPrefs());
+-    pref_registrar_.Add(prefs::kHeliumRoundedFrame,
++    pref_registrar_.Add(prefs::kOmarchyForceRoundedCorners,
+                         base::BindRepeating(&ProfileThemeWatch::ApplyCornersPref,
+                                             base::Unretained(this)));
+     ApplyCornersPref();
+@@ -82,10 +82,11 @@
+   }
+ 
+  private:
+-  // Applies the profile's Rounded corners setting to the theme radius.
++  // Applies the profile's "Always use rounded corners" setting. With it off
++  // the corners follow the theme's window rounding.
+   void ApplyCornersPref() {
+-    OmarchyTheme::GetInstance()->SetCornersEnabled(
+-        profile_->GetPrefs()->GetBoolean(prefs::kHeliumRoundedFrame));
++    OmarchyTheme::GetInstance()->SetForceRounded(
++        profile_->GetPrefs()->GetBoolean(prefs::kOmarchyForceRoundedCorners));
+   }
+ 
+   // Re-applies the palette only if something else replaced it.
+--- a/chrome/browser/omarchy/omarchy_theme_unittest.cc	2026-11-02 17:39:15.351817579 +1000
++++ b/chrome/browser/omarchy/omarchy_theme_unittest.cc	2026-11-02 17:40:07.631614997 +1000
+@@ -80,6 +80,29 @@
+ 
+   EXPECT_FALSE(theme.has_theme());
+   EXPECT_EQ(theme.radius(), 0);
++  EXPECT_FALSE(theme.corners_squared());
++}
++
++TEST_F(OmarchyThemeTest, CornersFollowThemeRoundingUnlessForced) {
++  Write(paths_.theme_dir.Append("colors.toml"),
++        "mode = \"dark\"\nbackground = \"#1e1e2e\"\n");
++
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++
++  // A theme with Omarchy's default rounding of 0 squares the corners.
++  EXPECT_TRUE(theme.has_theme());
++  EXPECT_TRUE(theme.corners_squared());
++
++  theme.SetForceRounded(true);
++  EXPECT_FALSE(theme.corners_squared());
++  theme.SetForceRounded(false);
++  EXPECT_TRUE(theme.corners_squared());
++
++  Write(paths_.user_lua, "rounding = 8\n");
++  Reload(theme);
++  EXPECT_EQ(theme.radius(), 8);
++  EXPECT_FALSE(theme.corners_squared());
+ }
+ 
+ TEST_F(OmarchyThemeTest, UserLooknfeelOverridesThemeRadius) {
+--- a/chrome/common/pref_names.h	2026-11-02 17:39:15.354257701 +1000
++++ b/chrome/common/pref_names.h	2026-11-02 17:40:07.635556862 +1000
+@@ -622,6 +622,12 @@
+ // frame.
+ inline constexpr char kHeliumRoundedFrame[] = "helium.browser.rounded_frame";
+ 
++// A boolean pref set to true to keep every corner rounded while an Omarchy
++// theme is active. When false the corners follow the theme's window rounding.
++// Ignored without an Omarchy theme, where kHeliumRoundedFrame applies.
++inline constexpr char kOmarchyForceRoundedCorners[] =
++    "omarchy.force_rounded_corners";
++
+ // A boolean pref set to true if browser frame surfaces should use native system
+ // materials instead of opaque fills.
+ inline constexpr char kHeliumNativeFrameMaterials[] =
+--- a/chrome/browser/ui/browser_ui_prefs.cc	2026-11-02 17:39:15.356662486 +1000
++++ b/chrome/browser/ui/browser_ui_prefs.cc	2026-11-02 17:40:07.639850213 +1000
+@@ -135,6 +135,7 @@
+   registry->RegisterBooleanPref(prefs::kShowZoomIndicator, true);
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumRoundedFrame, true);
++  registry->RegisterBooleanPref(prefs::kOmarchyForceRoundedCorners, false);
+ 
+   registry->RegisterBooleanPref(prefs::kHeliumNativeFrameMaterials, false);
+ 
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc	2026-11-02 17:39:15.358888433 +1000
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc	2026-11-02 17:40:07.644033091 +1000
+@@ -326,6 +326,8 @@
+       settings_api::PrefType::kBoolean;
+   (*s_allowlist)[::prefs::kHeliumRoundedFrame] =
+       settings_api::PrefType::kBoolean;
++  (*s_allowlist)[::prefs::kOmarchyForceRoundedCorners] =
++      settings_api::PrefType::kBoolean;
+ 
+   (*s_allowlist)[::prefs::kShowHomeButton] = settings_api::PrefType::kBoolean;
+   (*s_allowlist)[contextual_search::kDriveConsentState] =
+--- a/chrome/browser/ui/views/frame/multi_contents_view.cc	2026-11-02 17:39:15.361640467 +1000
++++ b/chrome/browser/ui/views/frame/multi_contents_view.cc	2026-11-02 17:40:07.647400529 +1000
+@@ -912,8 +912,12 @@
+   const views::Widget* widget = browser_view_->GetWidget();
+   const bool is_fullscreen = widget && widget->IsFullscreen();
+ #endif
+-  return browser_view_->GetIsNormalType() && is_rounded_frame_pref_enabled_ &&
+-         !is_fullscreen;
++  // With an Omarchy theme the corners follow the theme (or the "Always use
++  // rounded corners" setting), not Helium's Rounded corners pref.
++  const omarchy::OmarchyTheme* theme = omarchy::OmarchyTheme::GetInstance();
++  const bool rounded = theme->has_theme() ? !theme->corners_squared()
++                                          : is_rounded_frame_pref_enabled_;
++  return browser_view_->GetIsNormalType() && rounded && !is_fullscreen;
+ }
+ 
+ bool MultiContentsView::IsTopChromeAttachedForBorder() const {
+--- a/chrome/browser/ui/webui/theme_source.cc	2026-11-02 17:39:15.363845763 +1000
++++ b/chrome/browser/ui/webui/theme_source.cc	2026-11-02 17:40:07.651722044 +1000
+@@ -493,6 +493,12 @@
+     // Settings components multiply their fixed radii by this, so they go square.
+     base::StrAppend(&css_string, {"--omarchy-corner-on:0 !important;"});
+   }
++  // With an Omarchy theme the corners follow the theme, so Settings shows the
++  // "Always use rounded corners" row in place of Helium's Rounded corners row.
++  if (omarchy::OmarchyTheme::GetInstance()->has_theme()) {
++    base::StrAppend(&css_string,
++                    {"--omarchy-theme-row:block;--omarchy-stock-row:none;"});
++  }
+ 
+   css_string.push_back('}');
+   return css_string;
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts	2026-11-02 17:39:15.366866329 +1000
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts	2026-11-02 17:40:07.655308286 +1000
+@@ -66,10 +66,19 @@
+     <div class="hr" ?hidden="${!this.showHr_(
+         this.pageVisibility_.setTheme, this.pageVisibility_.homeButton)}">
+     </div>
+-    <settings-toggle-button
+-        pref-key="helium.browser.rounded_frame"
+-        label="$i18n{roundedFrame}">
+-    </settings-toggle-button>
++    <div id="stockRoundedRow">
++      <settings-toggle-button
++          pref-key="helium.browser.rounded_frame"
++          label="$i18n{roundedFrame}">
++      </settings-toggle-button>
++    </div>
++    <div id="omarchyRoundedRow">
++      <settings-toggle-button
++          pref-key="omarchy.force_rounded_corners"
++          label="$i18n{omarchyForceRounded}"
++          sub-label="$i18n{omarchyForceRoundedDescription}">
++      </settings-toggle-button>
++    </div>
+     <settings-toggle-button class="hr"
+         ?hidden="${!this.showNativeFrameMaterialsOption_}"
+         pref-key="helium.browser.native_frame_materials"
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.css	2026-11-02 17:39:15.369287387 +1000
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.css	2026-11-02 17:40:07.659316475 +1000
+@@ -11,6 +11,16 @@
+  * #include=cr-shared-style-lit settings-shared-lit md-select-lit
+  * #css_wrapper_metadata_end */
+ 
++/* The browser sets these in chrome://theme/colors.css while an Omarchy theme
++ * is active, swapping Helium's Rounded corners row for the Omarchy one. */
++#stockRoundedRow {
++  display: var(--omarchy-stock-row, block);
++}
++
++#omarchyRoundedRow {
++  display: var(--omarchy-theme-row, none);
++}
++
+ /* Lines up with cr-input. */
+ #custom-input {
+   /* (cr-input line-height + cr-input top/bottom padding) / 2 -
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc	2026-11-02 17:39:15.371711019 +1000
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc	2026-11-02 17:40:07.663620337 +1000
+@@ -608,6 +608,9 @@
+       {"openNewTabNextToActive", IDS_SETTINGS_NEW_TAB_NEXT_TO_ACTIVE_BUTTON},
+       {"cycleTabsInMRUOrder", IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER},
+       {"roundedFrame", IDS_SETTINGS_ROUNDED_FRAME},
++      {"omarchyForceRounded", IDS_SETTINGS_OMARCHY_FORCE_ROUNDED},
++      {"omarchyForceRoundedDescription",
++       IDS_SETTINGS_OMARCHY_FORCE_ROUNDED_DESCRIPTION},
+       {"nativeFrameMaterials", IDS_SETTINGS_NATIVE_FRAME_MATERIALS},
+       {"nativeFrameMaterialsDescription",
+        IDS_SETTINGS_NATIVE_FRAME_MATERIALS_DESCRIPTION},
+--- a/chrome/app/settings_strings.grdp	2026-11-02 17:39:15.374111051 +1000
++++ b/chrome/app/settings_strings.grdp	2026-11-02 17:40:07.667265208 +1000
+@@ -279,6 +279,12 @@
+     <message name="IDS_SETTINGS_ROUNDED_FRAME" desc="Label for the single toggle which makes all corners rounded or square: the web contents frame, tabs, the search box and the rest of the UI.">
+       Rounded corners
+     </message>
++    <message name="IDS_SETTINGS_OMARCHY_FORCE_ROUNDED" desc="Label for the toggle shown while an Omarchy theme is active. On, every corner is rounded. Off, the corners follow the window rounding of the theme.">
++      Always use rounded corners
++    </message>
++    <message name="IDS_SETTINGS_OMARCHY_FORCE_ROUNDED_DESCRIPTION" desc="Sub-label for the toggle shown while an Omarchy theme is active, explaining what happens when it is off.">
++      When off, corners follow the window rounding of the current Omarchy theme
++    </message>
+     <message name="IDS_SETTINGS_NATIVE_FRAME_MATERIALS" desc="Label for the toggle which enables or disables native system materials on the browser frame.">
+       Use native frame materials (experimental)
+     </message>

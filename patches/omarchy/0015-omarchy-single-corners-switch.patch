@@ -155,8 +155,8 @@
    auto border = std::make_unique<views::BubbleBorder>(
        views::BubbleBorder::Arrow::NONE,
        elevation == 0 ? views::BubbleBorder::Shadow::NO_SHADOW
---- a/ui/../chrome/browser/omarchy/omarchy_theme.h
-+++ b/ui/../chrome/browser/omarchy/omarchy_theme.h
+--- a/chrome/browser/omarchy/omarchy_theme.h
++++ b/chrome/browser/omarchy/omarchy_theme.h
 @@ -67,8 +67,11 @@
    // True once a colours file has parsed. Until then Helium behaves like stock.
    bool has_theme() const { return has_theme_; }

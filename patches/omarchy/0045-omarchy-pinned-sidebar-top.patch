@@ -1,0 +1,38 @@
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -4,6 +4,8 @@
+ 
+ #include "chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.h"
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
++
+ #include <algorithm>
+ #include <memory>
+ #include <optional>
+@@ -1151,6 +1153,26 @@
+         }
+       }
+     }
++
++    // The pinned strip's top was estimated from the ceiled exclusion height
++    // before the top container was laid out, which can be 1 DIP below the
++    // toolbar's real bottom at fractional scale factors. Snap it to the top
++    // container so no band of toolbar colour shows above the strip.
++    if (omarchy::OmarchyTheme::GetInstance()->has_theme() &&
++        !zen.floating_vertical_tab_strip &&
++        (!zen.enabled || zen.top_chrome_ratio >= 1.0f) &&
++        top_container_layout.bounds.height() > 0) {
++      auto it = layout.children.find(views().vertical_tab_strip_region_view);
++      if (it != layout.children.end() && !it->second.bounds.IsEmpty()) {
++        const int tc_bottom = top_container_layout.bounds.bottom();
++        gfx::Rect& strip_bounds = it->second.bounds;
++        if (strip_bounds.y() != tc_bottom) {
++          const int bottom = strip_bounds.bottom();
++          strip_bounds.set_y(tc_bottom);
++          strip_bounds.set_height(std::max(0, bottom - tc_bottom));
++        }
++      }
++    }
+   }
+ 
+   if (dynamic_tab_strip) {

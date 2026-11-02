@@ -1,0 +1,12 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -26,7 +26,8 @@
+     {"dark_background", ThemeProperties::COLOR_NTP_HEADER},
+     {"darker_background", ThemeProperties::COLOR_FRAME_INACTIVE},
+     {"darker_background", ThemeProperties::COLOR_FRAME_INACTIVE_INCOGNITO},
+-    {"background", ThemeProperties::COLOR_TOOLBAR},
++    // Header matches the sidebar (frame) instead of the page background.
++    {"dark_background", ThemeProperties::COLOR_TOOLBAR},
+     {"background", ThemeProperties::COLOR_NTP_BACKGROUND},
+     {"foreground", ThemeProperties::COLOR_TOOLBAR_TEXT},
+     {"foreground", ThemeProperties::COLOR_TOOLBAR_BUTTON_ICON},

@@ -1,0 +1,29 @@
+--- a/components/helium_services/helium_services_helpers.cc
++++ b/components/helium_services/helium_services_helpers.cc
+@@ -28,7 +28,6 @@
+ #endif
+ 
+ #if defined(UPDATES_SUPPORTED)
+-constexpr std::string_view kUpdateBaseUrl = "https://updates.helium.computer/";
+ constexpr const char kUpdatePath[] =
+ #if BUILDFLAG(IS_MAC)
+     "mac/appcast-" CPU_ARCH_STR ".xml";
+@@ -153,12 +152,14 @@
+   }
+ 
+ #if defined(UPDATES_SUPPORTED)
++  // OmaBrowse does not ship a default update server. Updates only run against
++  // a server the user names on the command line.
+   const auto* command_line = base::CommandLine::ForCurrentProcess();
+-  std::string baseUrl(kUpdateBaseUrl);
+-  if (command_line->HasSwitch(helium::kUpdateServerUrlCommandLine)) {
+-    baseUrl =
+-        command_line->GetSwitchValueASCII(helium::kUpdateServerUrlCommandLine);
++  if (!command_line->HasSwitch(helium::kUpdateServerUrlCommandLine)) {
++    return GetDummyURL();
+   }
++  std::string baseUrl =
++      command_line->GetSwitchValueASCII(helium::kUpdateServerUrlCommandLine);
+   return GURL(baseUrl).Resolve(kUpdatePath);
+ #else
+   return GetDummyURL();

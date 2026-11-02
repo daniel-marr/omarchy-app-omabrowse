@@ -1,0 +1,234 @@
+--- a/components/resources/components_resources.grd
++++ b/components/resources/components_resources.grd
+@@ -19,6 +19,7 @@
+       <part file="neterror_resources.grdp" />
+       <part file="notifications_global_cache_list.grdp" />
+       <part file="ntp_tiles_resources.grdp" />
++      <part file="omabrowse_resources.grdp" />
+       <part file="printing_resources.grdp" />
+       <part file="safe_browsing_resources.grdp" />
+       <part file="security_interstitials_resources.grdp" />
+--- /dev/null
++++ b/components/resources/omabrowse_resources.grdp
+@@ -0,0 +1,6 @@
++<?xml version="1.0" encoding="utf-8"?>
++<grit-part>
++  <!-- OmaBrowse: the !bangs list is built in instead of fetched from a server.
++       The file is installed by helium-linux/scripts/apply-resources.sh. -->
++  <include name="IDR_OMABROWSE_BANGS_JSON" file="../search_engines/resources/omabrowse_bangs.json" type="BINDATA" compress="gzip" />
++</grit-part>
+--- a/components/search_engines/BUILD.gn
++++ b/components/search_engines/BUILD.gn
+@@ -110,6 +110,7 @@
+     "//components/regional_capabilities",
+     "//components/regional_capabilities:country_access_reason",
+     "//components/regional_capabilities:data",
++    "//components/resources:components_resources_grit",
+     "//components/search_engines/search_engine_choice:buildflags",
+     "//components/search_engines/search_engine_choice:switches",
+     "//components/search_provider_logos:switches",
+--- /dev/null
++++ b/components/search_engines/DEPS
+@@ -0,0 +1,62 @@
++include_rules = [
++  "+components/country_codes",
++  "+components/database_utils",
++  "+components/favicon",
++  "+components/google/core",
++  "+components/grit/components_resources.h",
++  "+components/grit/components_scaled_resources.h",
++  "+components/infobars/core",
++  "+components/keyed_service/core",
++  "+components/lens",
++  "+components/regional_capabilities",
++  "+components/metrics",
++  "+components/omnibox/common",
++  "+components/os_crypt/async",
++  "+components/policy",
++  "+components/pref_registry",
++  "+components/prefs",
++  "+components/strings/grit/components_strings.h",
++  "+components/strings/grit/search_engine_descriptions_strings.h",
++  "+components/signin",
++  "+components/sync",
++  "+components/sync_preferences/testing_pref_service_syncable.h",
++  "+components/url_formatter",
++  "+components/variations",
++  "+components/version_info/version_info.h",
++  "+components/webdata",
++  "+crypto",
++  "+google_apis",
++  "+net",
++  "+services/data_decoder/public",
++  "+services/network/public/cpp",
++  "+services/network/public/mojom",
++  "+services/network/test",
++  "+services/preferences/tracked",
++  "+sql",
++  "+ui/resources",
++  "+third_party/metrics_proto",
++  "+third_party/omnibox_proto",
++  "+third_party/lens_server_proto",
++  "+third_party/search_engines_data",
++  "+ui/base",
++  "+ui/gfx",
++
++  # From https://crsrc.org/c/docs/debugging_with_crash_keys.md
++  # TODO(b/344899110): Cleanup when fixing the bug.
++  "+components/crash/core/common/crash_key.h",
++]
++
++specific_include_rules = {
++  ".*test\\.(cc|h)": [
++    "+components/os_crypt/async/browser/test_utils.h"
++  ],
++  "template_url_service_test_util\\.cc": [
++    "+components/os_crypt/async/browser/test_utils.h"
++  ],
++  "template_url_service\\.cc": [
++    "+components/regional_capabilities/access/country_access_reason.h"
++  ],
++  "template_url_prepopulate_data_resolver\\.cc": [
++    "+components/regional_capabilities/access/country_access_reason.h"
++  ],
++}
+--- a/components/search_engines/template_url_bang_manager.h
++++ b/components/search_engines/template_url_bang_manager.h
+@@ -53,8 +53,13 @@
+     private:
+         void DoStartFileFetch(
+             scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+-            PrefService& prefs
++            const GURL& url
+         );
++        // OmaBrowse: the bang list is built into the browser. This reads it
++        // off the thread pool and hands it to LoadManifestFromString.
++        void DoStartBundledLoad();
++        void OnBundledLoadComplete(std::string manifest);
++        void RunCallbacks();
+         void OnSimpleLoaderComplete(std::optional<std::string> response_body);
+         void LoadManifestFromString(const std::string& manifest);
+         BangCategory GetCategoryFromJSONObject(std::string_view sc) const;
+--- a/components/search_engines/template_url_bang_manager.cc
++++ b/components/search_engines/template_url_bang_manager.cc
+@@ -14,6 +14,8 @@
+ #include "base/memory/weak_ptr.h"
+ #include "base/memory/singleton.h"
+ #include "base/json/json_reader.h"
++#include "base/task/thread_pool.h"
++#include "components/grit/components_resources.h"
+ #include "components/helium_services/helium_services_helpers.h"
+ #include "net/base/load_flags.h"
+ #include "net/http/http_status_code.h"
+@@ -21,6 +23,7 @@
+ #include "services/network/public/cpp/simple_url_loader.h"
+ #include "services/network/public/cpp/shared_url_loader_factory.h"
+ #include "services/network/public/mojom/url_response_head.mojom.h"
++#include "ui/base/resource/resource_bundle.h"
+ #include "url/gurl.h"
+ 
+ namespace Bangs {
+@@ -72,9 +75,22 @@
+     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+     PrefService& prefs,
+     base::OnceClosure callback) {
++    if (!helium::ShouldFetchBangs(prefs)) {
++        // Feature off: report "loaded" with whatever is already there
++        // (nothing on a fresh start). Turning it on calls LoadBangs again.
++        std::move(callback).Run();
++        return;
++    }
++
+     if (bangs_.empty() && !load_pending_) {
+         load_pending_ = true;
+-        DoStartFileFetch(url_loader_factory, prefs);
++        if (std::optional<GURL> origin = helium::GetSelfHostedOrigin(prefs)) {
++            // Self-hosted helium-services instance: fetch its /bangs.json.
++            DoStartFileFetch(url_loader_factory, origin->Resolve(kBangsPrefix));
++        } else {
++            // Default: the list built into the browser. No network.
++            DoStartBundledLoad();
++        }
+     } else if (!load_pending_) {
+         std::move(callback).Run();
+         return;
+@@ -83,16 +99,51 @@
+     callbacks_.push_back(std::move(callback));
+ }
+ 
++namespace {
++
++std::string ReadBundledBangs() {
++    return ui::ResourceBundle::GetSharedInstance().LoadDataResourceString(
++        IDR_OMABROWSE_BANGS_JSON);
++}
++
++}  // namespace
++
++void BangManager::DoStartBundledLoad() {
++    base::ThreadPool::PostTaskAndReplyWithResult(
++        FROM_HERE,
++        {base::MayBlock(), base::TaskPriority::USER_VISIBLE},
++        base::BindOnce(&ReadBundledBangs),
++        base::BindOnce(&BangManager::OnBundledLoadComplete,
++                       weak_ptr_factory_.GetWeakPtr()));
++}
++
++void BangManager::OnBundledLoadComplete(std::string manifest) {
++    if (manifest.empty()) {
++        LOG(ERROR) << "Bundled bang list is missing or empty";
++    } else {
++        LoadManifestFromString(manifest);
++    }
++
++    load_pending_ = false;
++    RunCallbacks();
++}
++
++void BangManager::RunCallbacks() {
++    if (!callbacks_.empty()) {
++        auto callbacks = std::move(callbacks_);
++        for (auto& cb : callbacks) {
++            std::move(cb).Run();
++        }
++    }
++}
++
+ void BangManager::DoStartFileFetch(
+     scoped_refptr<network::SharedURLLoaderFactory> url_loader_factory,
+-    PrefService& prefs
++    const GURL& url
+ ) {
+     auto request = std::make_unique<network::ResourceRequest>();
+-    request->url = helium::GetServicesBaseURL(prefs).Resolve(kBangsPrefix);
+-
+-    request->load_flags = helium::ShouldFetchBangs(prefs)
+-                            ? net::LOAD_NORMAL
+-                            : net::LOAD_ONLY_FROM_CACHE;
++    request->url = url;
++    request->load_flags = net::LOAD_NORMAL;
+ 
+     request->credentials_mode = network::mojom::CredentialsMode::kOmit;
+     request->headers.SetHeader("Accept", "application/json");
+@@ -130,6 +181,7 @@
+     }
+ 
+     load_pending_ = false;
++    RunCallbacks();
+ }
+ 
+ std::vector<std::string> FilterTriggers(base::ListValue&& list) {
+@@ -201,13 +253,6 @@
+             bangs_.emplace_back(index++, *name, std::move(trigger), *url_template);
+         }
+     }
+-
+-    if (!callbacks_.empty()) {
+-        auto callbacks = std::move(callbacks_);
+-        for (auto& cb : callbacks) {
+-            std::move(cb).Run();
+-        }
+-    }
+ }
+ 
+ const std::vector<Bang>& BangManager::GetBangs() {

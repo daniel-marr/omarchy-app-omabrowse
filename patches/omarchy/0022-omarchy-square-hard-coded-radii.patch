@@ -122,3 +122,18 @@
               : gfx::Insets::VH(0, kVerticalHeaderChipHorizontalInset);
  }
  
+--- a/chrome/browser/omarchy/omarchy_theme.h
++++ b/chrome/browser/omarchy/omarchy_theme.h
+@@ -106,6 +106,12 @@
+   base::WeakPtrFactory<OmarchyTheme> weak_factory_{this};
+ };
+ 
++// The stock radius, or 0 when the Rounded corners setting is off on an Omarchy
++// theme. Use it wherever a fixed corner radius is drawn.
++inline int ScaledCornerRadius(int stock) {
++  return OmarchyTheme::GetInstance()->corners_squared() ? 0 : stock;
++}
++
+ }  // namespace omarchy
+ 
+ #endif  // CHROME_BROWSER_OMARCHY_OMARCHY_THEME_H_

@@ -1,0 +1,148 @@
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
+@@ -1702,25 +1702,25 @@
+       Allow connecting to OmaBrowse services
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_TOGGLE_DESCRIPTION" desc="Description of the toggle for enabling/disabling of all OmaBrowse services">
+-      When enabled, OmaBrowse will be able to connect to anonymous web services to provide additional functionality. When disabled, additional features will not work.
++      When enabled, OmaBrowse connects directly to the providers behind these features: the Chrome Web Store for extensions, Google's component update server, Google's dictionary host, and the sites that publish uBlock Origin filter lists. No OmaBrowse or Helium server sits in between. When disabled, these features will not work.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_EXT_PROXY_TOGGLE" desc="Toggle for enabling/disabling of downloading and proxying extensions">
+-      Proxy extension downloads and updates
++      Allow extension downloads and updates
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_EXT_PROXY_TOGGLE_DESCRIPTION" desc="Description of the toggle for enabling/disabling of downloading and proxying extensions">
+-      When enabled, OmaBrowse will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.
++      When enabled, OmaBrowse downloads and updates extensions directly from the Chrome Web Store. When disabled, downloading and updating extensions will not work.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_BANGS_TOGGLE" desc="Toggle for enabling/disabling of downloading bangs">
+-      Allow downloading the !bangs list
++      Enable !bangs
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_BANGS_TOGGLE_DESCRIPTION" desc="Description of the toggle for enabling/disabling of downloading bangs">
+-      OmaBrowse will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.
++      OmaBrowse ships with a built-in list of bangs that help you browse the Internet faster, such as !w or !gh. Nothing is downloaded. When disabled, bangs will not work.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_SPELLCHECK_TOGGLE" desc="Toggle for enabling/disabling of downloading spellcheck files">
+       Allow downloading dictionary files for spell checking
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_SPELLCHECK_TOGGLE_DESCRIPTION" desc="Description of the for enabling/disabling of downloading spellcheck files">
+-      OmaBrowse will fetch dictionary files used for spell checking when requested. When disabled, spell checking will not work.
++      OmaBrowse fetches dictionary files from Google's dictionary host when you add a spell-check language. When disabled, spell checking will not work.
+     </message>
+     <if expr="not is_linux">
+       <message name="IDS_SETTINGS_HELIUM_SERVICES_UPDATE" desc="Toggle for automatic update downloads">
+@@ -1735,23 +1735,23 @@
+         Allow automatic component updates
+       </message>
+       <message name="IDS_SETTINGS_HELIUM_SERVICES_UPDATE_DESCRIPTION" desc="Description of the toggle for automatic update downloads">
+-        OmaBrowse will automatically check for component updates and install them. We recommend keeping this setting enabled. On Linux, browser updates are handled by your distro's package manager. Please check for OmaBrowse package updates at least every week.
++        OmaBrowse will automatically check Google's component update server for component updates and install them. We recommend keeping this setting enabled. On Linux, browser updates are handled by your distro's package manager. Please check for OmaBrowse package updates at least every week.
+       </message>
+     </if>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_UBO" desc="Description of the toggle for uBO filter lists">
+       Allow downloading filter lists for uBlock Origin
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_UBO_DESCRIPTION" desc="Description of the toggle for automatic update downloads">
+-      OmaBrowse will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with OmaBrowse. Optional filter lists will be requested without proxying.
++      OmaBrowse fetches fresh filter lists for uBlock Origin directly from the sites that publish them, the same way uBlock Origin does on its own. When disabled, the filter lists bundled with OmaBrowse are used and only change when OmaBrowse is updated.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE" desc="Text input for overriding the OmaBrowse services server">
+-      Use your own instance of OmaBrowse services
++      Route through a self-hosted services instance
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION" desc="Description of the text input for overriding the OmaBrowse services server">
+-      You can host your own instance of OmaBrowse services and use it in your browser instead of the default one. HTTPS only.
++      Leave this empty to connect directly to each provider. To route everything through a self-hosted instance of helium-services instead, enter its HTTPS origin here.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_DESCRIPTION_WARNING" desc="Warning section of description for overriding the OmaBrowse services server">
+-      Do not use this field unless you know exactly what you are doing. Never paste URLs from other people here, they are trying to steal your data. We are not responsible for any damages caused by using a custom server and will not be able to help you.
++      Only enter a server you run yourself. Never paste a URL someone else gave you: that server would see every extension, component and filter-list request this browser makes.
+     </message>
+     <message name="IDS_SETTINGS_HELIUM_SERVICES_OVERRIDE_ARIA_LABEL" desc="ARIA label of the text input for overriding the OmaBrowse services server">
+       Custom origin URL for OmaBrowse services
+--- a/chrome/browser/resources/settings/privacy_page/services_page.html
++++ b/chrome/browser/resources/settings/privacy_page/services_page.html
+@@ -142,7 +142,7 @@
+     </div>
+     <cr-input
+         id="heliumOriginOverride"
+-        placeholder="https://services.helium.imput.net"
++        placeholder="https://services.example.org"
+         value="[[prefs.helium.services.origin_override.value]]"
+         pattern="https://.*"
+         on-keydown="onOriginOverrideKeydown_"
+--- a/components/helium_onboarding/helium_onboarding_strings.grdp
++++ b/components/helium_onboarding/helium_onboarding_strings.grdp
+@@ -37,7 +37,7 @@
+   By continuing, you agree to the <ph name="BEGIN_LINK_PRIVACY">$1</ph>privacy policy<ph name="END_LINK_PRIVACY">$2</ph> and <ph name="BEGIN_LINK_TERMS">$3</ph>terms of use<ph name="END_LINK_TERMS">$4</ph>.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_WELCOME_FOOTER" desc="Footer text explaining that setup can be skipped but OmaBrowse services require consent.">
+-  If you use defaults, OmaBrowse services will be automatically enabled.
++  If you use defaults, extension downloads, component updates, dictionaries, !bangs and filter-list updates are enabled.
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_FINISH_TITLE" desc="Title on the final onboarding screen.">
+@@ -51,31 +51,31 @@
+   OmaBrowse services
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SUBTITLE" desc="Subtitle explaining when OmaBrowse services consent choices take effect.">
+-  Services are not active until you consent to using them. Changes will be applied after you go to the next page.
++  These features connect directly to their upstream providers. No OmaBrowse or Helium server is involved. Changes will be applied after you go to the next page.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONNECTION_TITLE" desc="Title of the global toggle for connecting to OmaBrowse services.">
+   Allow connecting to OmaBrowse services
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_CONNECTION_DESC" desc="Description of the global OmaBrowse services toggle.">
+-  OmaBrowse services provide additional functionality, such as: extension downloads, native !bangs, filter list updates, and browser updates. When disabled, none of these features will work, but OmaBrowse will not make any web requests.
++  These features provide additional functionality: extension downloads from the Chrome Web Store, component updates from Google, spell-check dictionaries from Chromium, filter-list updates from the sites that publish them, and built-in !bangs. When disabled, none of them will work, but OmaBrowse will not make any of these web requests.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_BANGS_TITLE" desc="Title of the toggle for downloading the OmaBrowse bangs list.">
+-  Allow downloading the !bangs list
++  Enable !bangs
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_BANGS_DESC" desc="Description of the toggle for downloading the OmaBrowse bangs list.">
+-  OmaBrowse will fetch a list of bangs that help you browse the Internet faster, such as !w or !gh. When disabled, bangs will not work.
++  OmaBrowse ships with a built-in list of bangs that help you browse the Internet faster, such as !w or !gh. Nothing is downloaded. When disabled, bangs will not work.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_TITLE" desc="Title of the toggle for proxying extension downloads and updates.">
+-  Proxy extension downloads and updates
++  Allow extension downloads and updates
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_EXTENSIONS_DESC" desc="Description of the toggle for proxying extension downloads and updates.">
+-  When enabled, OmaBrowse will proxy extension downloads and updates to protect your privacy. When disabled, downloading and updating extensions will not work.
++  When enabled, OmaBrowse downloads and updates extensions directly from the Chrome Web Store. When disabled, downloading and updating extensions will not work.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_TITLE" desc="Title of the toggle for downloading uBlock Origin filter lists.">
+   Allow downloading filter lists for uBlock Origin
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_UBLOCK_DESC" desc="Description of the toggle for downloading uBlock Origin filter lists.">
+-  OmaBrowse will fetch fresh filter lists for uBlock Origin. All requests to lists are proxied to protect your privacy. When disabled, default filter lists will be loaded from local storage, which are only updated along with OmaBrowse. Optional filter lists will be requested without proxying.
++  OmaBrowse fetches fresh filter lists for uBlock Origin directly from the sites that publish them, the same way uBlock Origin does on its own. When disabled, the filter lists bundled with OmaBrowse are used and only change when OmaBrowse is updated.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_AUTOUPDATES_TITLE" desc="Title of the toggle for automatic browser updates on platforms where OmaBrowse updates the browser.">
+   Allow automatic browser updates
+@@ -87,19 +87,19 @@
+   Allow automatic component updates
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_AUTOUPDATES_DESC_LINUX" desc="Description of the toggle for automatic component updates on Linux.">
+-  OmaBrowse will automatically check for component updates and install them. We recommend keeping this setting enabled. On Linux, browser updates are handled by your distro's package manager. Please check for OmaBrowse package updates at least every week.
++  OmaBrowse will automatically check Google's component update server for component updates and install them. We recommend keeping this setting enabled. On Linux, browser updates are handled by your distro's package manager. Please check for OmaBrowse package updates at least every week.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_TITLE" desc="Title of the toggle for downloading spell check dictionary files.">
+   Allow downloading dictionary files for spell checking
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_SPELLCHECK_DESC" desc="Description of the toggle for downloading spell check dictionary files.">
+-  OmaBrowse will fetch dictionary files used for spell checking when requested. When disabled, spell checking will not work.
++  OmaBrowse fetches dictionary files from Google's dictionary host when you add a spell-check language. When disabled, spell checking will not work.
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_TITLE" desc="Title of the option describing custom OmaBrowse services instances.">
+-  Use your own instance of OmaBrowse services
++  Route through a self-hosted services instance
+ </message>
+ <message name="IDS_HELIUM_ONBOARDING_SERVICES_INSTANCE_DESC" desc="Description of the option describing custom OmaBrowse services instances.">
+-  You can host your own instance of OmaBrowse services and use it in your browser instead of the pre-hosted server. If you have one, you can set it in OmaBrowse settings.
++  By default nothing is routed through a middle server. If you run your own instance of helium-services, you can route these features through it in OmaBrowse settings.
+ </message>
+ 
+ <message name="IDS_HELIUM_ONBOARDING_SEARCH_TITLE" desc="Title of the onboarding screen for selecting a default search engine.">

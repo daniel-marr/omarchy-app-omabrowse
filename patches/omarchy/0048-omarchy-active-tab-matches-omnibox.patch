@@ -1,0 +1,13 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -44,6 +44,10 @@
+     {"dark_foreground",
+      ThemeProperties::COLOR_TAB_FOREGROUND_INACTIVE_FRAME_INACTIVE_INCOGNITO},
+     {"lighter_background", ThemeProperties::COLOR_OMNIBOX_BACKGROUND},
++    // The active tab pill matches the omnibox so it stays visible when the
++    // header shares the sidebar colour.
++    {"lighter_background", ThemeProperties::COLOR_TAB_BACKGROUND_ACTIVE_FRAME_ACTIVE},
++    {"lighter_background", ThemeProperties::COLOR_TAB_BACKGROUND_ACTIVE_FRAME_INACTIVE},
+     {"lighter_background", ThemeProperties::COLOR_CONTROL_BUTTON_BACKGROUND},
+     {"accent", ThemeProperties::COLOR_NTP_LINK},
+ };

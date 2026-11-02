@@ -1,0 +1,127 @@
+--- a/chrome/browser/ui/browser_actions.cc
++++ b/chrome/browser/ui/browser_actions.cc
+@@ -3909,9 +3909,7 @@
+           .SetText(
+               l10n_util::GetStringUTF16(IDS_SET_BROWSER_AS_DEFAULT_MENU_ITEM))
+           .SetImage(ui::ImageModel::FromVectorIcon(
+-              features::IsRoundedIconsEnabled()
+-                  ? omnibox::kChromeProductIcon
+-                  : omnibox::kProductChromeRefreshOldIcon,
++              omnibox::kOmabrowseWorldIcon,
+               ui::kColorMenuIconOnEmphasizedBackground))
+           .SetProperty(views::kElementIdentifierKey,
+                        AppMenuModel::kSetBrowserAsDefaultMenuItem)
+@@ -4445,7 +4443,7 @@
+                 bwi),
+             kActionChromeEnterpriseReleaseNotes,
+             IDS_CHROME_ENTERPRISE_RELEASE_NOTES,
+-            IDS_CHROME_ENTERPRISE_RELEASE_NOTES, omnibox::kChromeProductIcon,
++            IDS_CHROME_ENTERPRISE_RELEASE_NOTES, omnibox::kOmabrowseWorldIcon,
+             /*is_pinnable=*/false)
+             .Build());
+   }
+--- a/chrome/browser/ui/toolbar/app_menu_model.cc
++++ b/chrome/browser/ui/toolbar/app_menu_model.cc
+@@ -2102,7 +2102,7 @@
+         base::FeatureList::IsEnabled(features::kEnterpriseReleaseNotes)) {
+       AddItemWithStringIdAndVectorIcon(
+           this, IDC_CHROME_ENTERPRISE_RELEASE_NOTES,
+-          IDS_CHROME_ENTERPRISE_RELEASE_NOTES, omnibox::kChromeProductIcon);
++          IDS_CHROME_ENTERPRISE_RELEASE_NOTES, omnibox::kOmabrowseWorldIcon);
+     }
+ #endif  // BUILDFLAG(IS_LINUX)
+   }
+@@ -2204,7 +2204,7 @@
+   }
+ 
+   const auto update_icon = ui::ImageModel::FromVectorIcon(
+-      omnibox::kProductChromeRefreshOldIcon, ui::kColorMenuIcon, kDefaultIconSize);
++      omnibox::kOmabrowseWorldIcon, ui::kColorMenuIcon, kDefaultIconSize);
+   AddItemWithIcon(
+       IDC_HELIUM_SERVICES_OPEN,
+       l10n_util::GetStringUTF16(IDS_HELIUM_SERVICES_SCHEMA_MENU_ITEM),
+--- a/chrome/browser/ui/web_applications/web_app_menu_model.cc
++++ b/chrome/browser/ui/web_applications/web_app_menu_model.cc
+@@ -27,6 +27,7 @@
+ #include "chrome/grit/generated_resources.h"
+ #include "components/omnibox/browser/location_bar_model.h"
+ #include "components/strings/grit/components_strings.h"
++#include "components/omnibox/browser/vector_icons.h"
+ #include "components/vector_icons/vector_icons.h"
+ #include "components/webapps/browser/installable/installable_metrics.h"
+ #include "content/public/common/content_features.h"
+@@ -208,8 +209,7 @@
+   if (ShouldAllowOpenInChrome(browser())) {
+     AddItemWithStringIdAndVectorIcon(
+         this, IDC_OPEN_IN_CHROME, IDS_OPEN_IN_CHROME,
+-        features::IsRoundedIconsEnabled() ? kChromeProductIcon
+-                                          : kBrowserLogoOldIcon);
++        omnibox::kOmabrowseWorldIcon);
+   }
+ 
+ #if BUILDFLAG(IS_CHROMEOS)
+--- a/chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.cc
++++ b/chrome/browser/ui/webui/cr_components/searchbox/searchbox_handler.cc
+@@ -672,9 +672,7 @@
+                                ? omnibox::kPublicIcon.name
+                                : omnibox::kPageChromeRefreshOldIcon.name)) {
+     resource_name = kPageIconResourceName;
+-  } else if (icon.name == (features::IsRoundedIconsEnabled()
+-                               ? omnibox::kChromeProductIcon.name
+-                               : omnibox::kProductChromeRefreshOldIcon.name)) {
++  } else if (icon.name == omnibox::kOmabrowseWorldIcon.name) {
+     resource_name = kPedalsIconResourceName;
+   } else if (icon.name == omnibox::kReplyRotated180CustomIcon.name) {
+     resource_name = searchbox_internal::kReplyRotated180IconResourceName;
+--- a/components/omnibox/browser/actions/omnibox_action.cc
++++ b/components/omnibox/browser/actions/omnibox_action.cc
+@@ -110,9 +110,7 @@
+ #if defined(SUPPORT_PEDALS_VECTOR_ICONS)
+ const gfx::VectorIcon& OmniboxAction::GetVectorIcon() const {
+   // TODO(tommycli): Replace with real icon.
+-  return features::IsRoundedIconsEnabled()
+-             ? omnibox::kChromeProductIcon
+-             : omnibox::kProductChromeRefreshOldIcon;
++  return omnibox::kOmabrowseWorldIcon;
+ }
+ #endif
+ 
+--- a/components/omnibox/browser/actions/omnibox_pedal.cc
++++ b/components/omnibox/browser/actions/omnibox_pedal.cc
+@@ -253,9 +253,7 @@
+ #if defined(SUPPORT_PEDALS_VECTOR_ICONS)
+ // static
+ const gfx::VectorIcon& OmniboxPedal::GetDefaultVectorIcon() {
+-  return features::IsRoundedIconsEnabled()
+-             ? omnibox::kChromeProductIcon
+-             : omnibox::kProductChromeRefreshOldIcon;
++  return omnibox::kOmabrowseWorldIcon;
+ }
+ 
+ const gfx::VectorIcon& OmniboxPedal::GetVectorIcon() const {
+--- a/components/omnibox/browser/autocomplete_match.cc
++++ b/components/omnibox/browser/autocomplete_match.cc
+@@ -695,9 +695,7 @@
+       if (turl) {
+         return searchbox::GetKeywordVectorIcon(*turl);
+       }
+-      return features::IsRoundedIconsEnabled()
+-                 ? omnibox::kChromeProductIcon
+-                 : omnibox::kProductChromeRefreshOldIcon;
++      return omnibox::kOmabrowseWorldIcon;
+ 
+     case Type::kFeaturedEnterpriseSearch:
+       if (turl && turl->featured_by_policy()) {
+--- a/components/omnibox/browser/searchbox_utils.cc
++++ b/components/omnibox/browser/searchbox_utils.cc
+@@ -594,9 +594,7 @@
+                  ? vector_icons::kHistoryIcon
+                  : vector_icons::kHistoryChromeRefreshOldIcon;
+     case StarterPackId::kTabs:
+-      return features::IsRoundedIconsEnabled()
+-                 ? omnibox::kChromeProductIcon
+-                 : omnibox::kProductChromeRefreshOldIcon;
++      return omnibox::kOmabrowseWorldIcon;
+     default:
+       break;
+   }

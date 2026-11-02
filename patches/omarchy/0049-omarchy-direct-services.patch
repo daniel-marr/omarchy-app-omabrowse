@@ -1,0 +1,114 @@
+--- a/components/helium_services/helium_services_helpers.h
++++ b/components/helium_services/helium_services_helpers.h
+@@ -12,8 +12,20 @@
+ 
+ namespace helium {
+ 
+-const char kHeliumDefaultOrigin[] =
+-    "https://services.helium.imput.net";
++// OmaBrowse: there is no default services server. With no user-set origin,
++// every feature talks to its upstream provider directly, exactly as stock
++// Chromium does. A user-set HTTPS origin switches all of them to the
++// helium-services URL layout, so a self-hosted instance still works.
++inline constexpr char kUpstreamExtensionUpdateURL[] =
++    "https://clients2.google.com/service/update2/crx";
++inline constexpr char kUpstreamWebstoreSnippetURL[] =
++    "https://chromewebstore.googleapis.com/v2/items/%s:fetchItemSnippet";
++inline constexpr char kUpstreamComponentUpdateURL[] =
++    "https://update.googleapis.com/service/update2/json";
++inline constexpr char kUpstreamDictionaryURL[] =
++    "https://redirector.gvt1.com/edgedl/chrome/dict/";
++inline constexpr char kUpstreamUBlockAssetsURL[] =
++    "https://raw.githubusercontent.com/imputnet/uBlock/refs/heads/main/assets/assets.json";
+ 
+ const char kHeliumDummyOrigin[] =
+     "https://helium-services-are-disabled.qjz9zk";
+@@ -25,7 +37,8 @@
+ COMPONENT_EXPORT(HELIUM) bool ShouldAccessUpdateService(const PrefService& prefs);
+ COMPONENT_EXPORT(HELIUM) bool ShouldAccessComponentUpdateService(const PrefService& prefs);
+ COMPONENT_EXPORT(HELIUM) bool ShouldAccessUBlockAssets(const PrefService& prefs);
+-COMPONENT_EXPORT(HELIUM) GURL GetServicesBaseURL(const PrefService& prefs);
++// The user-set self-hosted origin, if any. Empty when connecting directly.
++COMPONENT_EXPORT(HELIUM) std::optional<GURL> GetSelfHostedOrigin(const PrefService& prefs);
+ COMPONENT_EXPORT(HELIUM) GURL GetDummyURL();
+ COMPONENT_EXPORT(HELIUM) GURL GetExtensionUpdateURL(const PrefService& prefs);
+ COMPONENT_EXPORT(HELIUM) GURL GetWebstoreSnippetURL(const PrefService& prefs, std::string_view id);
+--- a/components/helium_services/helium_services_helpers.cc
++++ b/components/helium_services/helium_services_helpers.cc
+@@ -64,13 +64,19 @@
+     );
+ }
+ 
+-GURL GetServicesBaseURL(const PrefService& prefs) {
+-    std::optional<GURL> user_url = GetValidUserOverridenURL(prefs);
+-    if (user_url) {
+-        return *user_url;
+-    }
++std::optional<GURL> GetSelfHostedOrigin(const PrefService& prefs) {
++    return GetValidUserOverridenURL(prefs);
++}
+ 
+-    return GURL(kHeliumDefaultOrigin);
++// Resolves |proxy_path| against the self-hosted origin when one is set,
++// otherwise returns the upstream URL.
++static GURL SelfHostedOrUpstream(const PrefService& prefs,
++                                 std::string_view proxy_path,
++                                 std::string_view upstream) {
++    if (std::optional<GURL> origin = GetSelfHostedOrigin(prefs)) {
++        return origin->Resolve(proxy_path);
++    }
++    return GURL(upstream);
+ }
+ 
+ GURL GetDummyURL() {
+@@ -118,7 +124,7 @@
+         return GetDummyURL();
+     }
+ 
+-    return GetServicesBaseURL(prefs).Resolve("/ext");
++    return SelfHostedOrUpstream(prefs, "/ext", kUpstreamExtensionUpdateURL);
+ }
+ 
+ GURL GetWebstoreSnippetURL(const PrefService& prefs, std::string_view id) {
+@@ -126,8 +132,11 @@
+         return GetDummyURL();
+     }
+ 
+-    return GetServicesBaseURL(prefs).Resolve(
+-        base::StringPrintf("/ext/cws_snippet?id=%s", id));
++    if (std::optional<GURL> origin = GetSelfHostedOrigin(prefs)) {
++        return origin->Resolve(
++            base::StringPrintf("/ext/cws_snippet?id=%s", id));
++    }
++    return GURL(base::StringPrintf(kUpstreamWebstoreSnippetURL, id));
+ }
+ 
+ GURL GetSpellcheckURL(const PrefService& prefs) {
+@@ -135,7 +144,7 @@
+         return GetDummyURL();
+     }
+ 
+-    return GetServicesBaseURL(prefs).Resolve("/dict/");
++    return SelfHostedOrUpstream(prefs, "/dict/", kUpstreamDictionaryURL);
+ }
+ 
+ GURL GetBrowserUpdateURL(const PrefService& prefs) {
+@@ -161,7 +170,7 @@
+         return GetDummyURL();
+     }
+ 
+-    return GetServicesBaseURL(*prefs).Resolve("/com");
++    return SelfHostedOrUpstream(*prefs, "/com", kUpstreamComponentUpdateURL);
+ }
+ 
+ GURL GetUBlockAssetsURL(const PrefService& prefs) {
+@@ -169,7 +178,8 @@
+         return GetDummyURL();
+     }
+ 
+-    return GetServicesBaseURL(prefs).Resolve("/ubo/assets.json");
++    return SelfHostedOrUpstream(prefs, "/ubo/assets.json",
++                                kUpstreamUBlockAssetsURL);
+ }
+ 
+ void ConfigurePrefChangeRegistrarFor(std::string_view pref_name,

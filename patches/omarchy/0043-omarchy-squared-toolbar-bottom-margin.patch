@@ -1,0 +1,16 @@
+--- a/chrome/browser/ui/layout_constants.cc
++++ b/chrome/browser/ui/layout_constants.cc
+@@ -238,7 +238,12 @@
+ 
+     case TOOLBAR_INTERIOR_MARGIN: {
+       const int base = GetLayoutConstant(LayoutConstant::kHeliumBasePadding);
+-      return gfx::Insets::VH(base, base * 2);
++      // Squared Omarchy corners: a little more room under the omnibox so the
++      // header reads as a band above the page.
++      const int bottom =
++          omarchy::OmarchyTheme::GetInstance()->corners_squared() ? base + 1
++                                                                   : base;
++      return gfx::Insets::TLBR(base, base * 2, bottom, base * 2);
+     }
+ 
+     case WEBUI_TAB_STRIP_TOOLBAR_INTERIOR_MARGIN:

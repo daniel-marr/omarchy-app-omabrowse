@@ -1,0 +1,34 @@
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
+@@ -16,6 +16,7 @@
+ #include "chrome/common/buildflags.h"
+ #include "chrome/common/pref_names.h"
+ #include "components/helium_services/pref_names.h"
++#include "components/helium_services/schema.h"
+ #include "components/policy/core/common/policy_pref_names.h"
+ #include "components/pref_registry/pref_registry_syncable.h"
+ #include "components/prefs/pref_registry_simple.h"
+@@ -259,15 +260,19 @@
+ #endif
+ 
+   {
+-    registry->RegisterIntegerPref(prefs::kHeliumSchemaVersion, 0);
+-    registry->RegisterBooleanPref(prefs::kHeliumDisableSchemaAlerts, false);
++    // OmaBrowse: no onboarding gate. New profiles start with services on,
++    // consent recorded and the current services schema accepted, so nothing
++    // is blocked and no "services updated" notice is shown.
++    registry->RegisterIntegerPref(prefs::kHeliumSchemaVersion,
++                                  helium::kHeliumCurrentSchemaVersion);
++    registry->RegisterBooleanPref(prefs::kHeliumDisableSchemaAlerts, true);
+     registry->RegisterBooleanPref(prefs::kHeliumServicesEnabled, true);
+     registry->RegisterBooleanPref(prefs::kHeliumBangsEnabled, true);
+     registry->RegisterBooleanPref(prefs::kHeliumExtProxyEnabled, true);
+     registry->RegisterBooleanPref(prefs::kHeliumSpellcheckEnabled, true);
+     registry->RegisterStringPref(prefs::kHeliumServicesOrigin, "");
+-    registry->RegisterBooleanPref(prefs::kHeliumDidOnboarding, false);
+-    registry->RegisterBooleanPref(prefs::kHeliumServicesConsented, false);
++    registry->RegisterBooleanPref(prefs::kHeliumDidOnboarding, true);
++    registry->RegisterBooleanPref(prefs::kHeliumServicesConsented, true);
+     registry->RegisterBooleanPref(prefs::kHeliumUpdateFetchingEnabled, true);
+     registry->RegisterBooleanPref(prefs::kHeliumUBlockAssetsEnabled, true);
+   }
