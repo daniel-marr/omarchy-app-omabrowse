@@ -1,0 +1,36 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.h
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.h
+@@ -48,6 +48,7 @@
+   std::map<int, SkColor> colors_;
+   // Palette entries used by AddColorMixers(), when the theme provides them.
+   std::optional<SkColor> accent_;
++  std::optional<SkColor> background_;
+   std::optional<SkColor> foreground_;
+   std::optional<SkColor> bright_foreground_;
+ };
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -77,6 +77,9 @@
+   if (auto it = theme.colors.find("accent"); it != theme.colors.end()) {
+     accent_ = to_sk(it->second);
+   }
++  if (auto it = theme.colors.find("background"); it != theme.colors.end()) {
++    background_ = to_sk(it->second);
++  }
+   if (auto it = theme.colors.find("foreground"); it != theme.colors.end()) {
+     foreground_ = to_sk(it->second);
+   }
+@@ -107,6 +110,13 @@
+     // The focus ring is computed from the seed palette, so set its state colour too.
+     mixer[ui::kColorSysStateFocusRing] = {*accent_};
+   }
++  if (background_) {
++    // Internal pages (Settings, History, Extensions and the rest) use the same
++    // background as the new tab page instead of a surface derived from the
++    // seed colour.
++    mixer[kColorWebuiPageBackground] = {*background_};
++    mixer[kColorSettingsWebuiPageBackground] = {*background_};
++  }
+   if (foreground_) {
+     // Most icons derive from these, so the whole UI icon set follows the theme.
+     mixer[ui::kColorSysOnSurface] = {*foreground_};
