@@ -1,0 +1,41 @@
+diff -u -r a/chrome/browser/omarchy/omarchy_theme_supplier.cc b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -84,6 +84,10 @@
+       it != theme.colors.end()) {
+     dark_background_ = to_sk(it->second);
+   }
++  if (auto it = theme.colors.find("lighter_background");
++      it != theme.colors.end()) {
++    lighter_background_ = to_sk(it->second);
++  }
+   if (auto it = theme.colors.find("foreground"); it != theme.colors.end()) {
+     foreground_ = to_sk(it->second);
+   }
+@@ -120,6 +124,15 @@
+     // seed colour.
+     mixer[kColorWebuiPageBackground] = {*background_};
+     mixer[kColorSettingsWebuiPageBackground] = {*background_};
++    // Side panel cards and dialogs (Customize OmaBrowse, bookmarks, history,
++    // reading list) take the same surface, so they sit on the panel the way
++    // a page sits beside the frame.
++    mixer[kColorSidePanelCardBackground] = {*background_};
++    mixer[kColorSidePanelDialogBackground] = {*background_};
++  }
++  if (lighter_background_) {
++    // The side panel search field matches the omnibox.
++    mixer[kColorSidePanelSearchFieldBackground] = {*lighter_background_};
+   }
+   if (dark_background_) {
+     // Menus take the frame and toolbar colour they drop out of. The hovered
+diff -u -r a/chrome/browser/omarchy/omarchy_theme_supplier.h b/chrome/browser/omarchy/omarchy_theme_supplier.h
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.h
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.h
+@@ -50,6 +50,7 @@
+   std::optional<SkColor> accent_;
+   std::optional<SkColor> background_;
+   std::optional<SkColor> dark_background_;
++  std::optional<SkColor> lighter_background_;
+   std::optional<SkColor> foreground_;
+   std::optional<SkColor> bright_foreground_;
+ };
