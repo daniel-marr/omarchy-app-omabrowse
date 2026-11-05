@@ -1,0 +1,38 @@
+diff -u -r a/chrome/browser/omarchy/omarchy_theme_supplier.cc b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -80,6 +80,10 @@
+   if (auto it = theme.colors.find("background"); it != theme.colors.end()) {
+     background_ = to_sk(it->second);
+   }
++  if (auto it = theme.colors.find("dark_background");
++      it != theme.colors.end()) {
++    dark_background_ = to_sk(it->second);
++  }
+   if (auto it = theme.colors.find("foreground"); it != theme.colors.end()) {
+     foreground_ = to_sk(it->second);
+   }
+@@ -117,6 +121,12 @@
+     mixer[kColorWebuiPageBackground] = {*background_};
+     mixer[kColorSettingsWebuiPageBackground] = {*background_};
+   }
++  if (dark_background_) {
++    // Menus take the frame and toolbar colour they drop out of. The hovered
++    // row, the menu buttons and the context menus all derive from this ID, so
++    // they follow along.
++    mixer[ui::kColorMenuBackground] = {*dark_background_};
++  }
+   if (foreground_) {
+     // Most icons derive from these, so the whole UI icon set follows the theme.
+     mixer[ui::kColorSysOnSurface] = {*foreground_};
+diff -u -r a/chrome/browser/omarchy/omarchy_theme_supplier.h b/chrome/browser/omarchy/omarchy_theme_supplier.h
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.h
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.h
+@@ -49,6 +49,7 @@
+   // Palette entries used by AddColorMixers(), when the theme provides them.
+   std::optional<SkColor> accent_;
+   std::optional<SkColor> background_;
++  std::optional<SkColor> dark_background_;
+   std::optional<SkColor> foreground_;
+   std::optional<SkColor> bright_foreground_;
+ };
