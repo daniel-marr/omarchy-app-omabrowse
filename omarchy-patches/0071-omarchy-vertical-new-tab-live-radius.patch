@@ -1,0 +1,27 @@
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.h
+@@ -17,6 +17,9 @@
+  public:
+   explicit VerticalNewTabButton(BrowserWindowInterface* browser);
+   ~VerticalNewTabButton() override;
++
++  // views::View:
++  void OnThemeChanged() override;
+ };
+ 
+ #endif  // CHROME_BROWSER_UI_VIEWS_TABS_VERTICAL_VERTICAL_NEW_TAB_BUTTON_H_
+--- a/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
++++ b/chrome/browser/ui/views/tabs/vertical/vertical_new_tab_button.cc
+@@ -37,5 +37,12 @@
+ 
+ VerticalNewTabButton::~VerticalNewTabButton() = default;
+ 
++void VerticalNewTabButton::OnThemeChanged() {
++  shared::NewTabButton::OnThemeChanged();
++  // The radius is read once in the constructor. Re-read it so the hover
++  // highlight follows the Omarchy corners setting when it changes live.
++  SetCornerRadius(GetLayoutConstant(LayoutConstant::kVerticalTabCornerRadius));
++}
++
+ BEGIN_METADATA(VerticalNewTabButton)
+ END_METADATA
