@@ -28,6 +28,8 @@ distributed:
 ## Trademarks
 
 "Chromium" and "Google Chrome" are trademarks of Google LLC. "Helium" is a
-trademark of its authors. OmaBrowse is not affiliated with, endorsed by, or
-sponsored by Google LLC, The Helium Authors, or imput. Names are used only to
-credit upstream work.
+trademark of its authors. "Omarchy" is the name of the Linux distribution
+this browser is built for, and belongs to its authors. OmaBrowse is not
+affiliated with, endorsed by, or sponsored by Google LLC, The Helium Authors,
+imput, or the Omarchy project. Names are used only to credit upstream work and
+to say which desktop the browser targets.

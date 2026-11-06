@@ -24,5 +24,5 @@ OmaBrowse is distributed under the GNU General Public License v3.0. See
 ## Disclaimer
 
 OmaBrowse is not affiliated with, endorsed by, or sponsored by Google LLC,
-The Helium Authors, or imput. It is provided as is, without warranty of any
-kind.
+The Helium Authors, imput, or the Omarchy project. The name refers to the
+desktop it is built for. It is provided as is, without warranty of any kind.
