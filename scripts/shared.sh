@@ -83,7 +83,7 @@ apply_patches() {
 # they expect "Helium" strings and the Helium resource files to be in place.
 apply_omarchy_patches() {
     if [ ! -f "${_src_dir}/.omarchy-patched.stamp" ]; then
-        "${_main_repo}/utils/patches.py" apply "${_src_dir}" "${_root_dir}/patches/omarchy"
+        "${_main_repo}/utils/patches.py" apply "${_src_dir}" "${_root_dir}/omarchy-patches"
         touch "${_src_dir}/.omarchy-patched.stamp"
     fi
 }

@@ -15,7 +15,7 @@ any server. It is the file Helium's own service serves at `/bangs.json`.
   the full licence text is embedded at the top of the file.
 - Installed to `components/search_engines/resources/omabrowse_bangs.json` and
   compiled into `components_resources.pak` as `IDR_OMABROWSE_BANGS_JSON`
-  (see `patches/omarchy/0050-omarchy-bundled-bangs.patch`).
+  (see `omarchy-patches/0050-omarchy-bundled-bangs.patch`).
 
 To refresh: copy a newer `svc/bangs/bangs.json` from helium-services over this
 file, update `bangs.json.source-commit`, and rebuild. The browser reads the
