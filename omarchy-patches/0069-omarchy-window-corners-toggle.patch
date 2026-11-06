@@ -1,0 +1,147 @@
+--- a/chrome/browser/omarchy/omarchy_theme.h
++++ b/chrome/browser/omarchy/omarchy_theme.h
+@@ -38,6 +38,11 @@
+     base::FilePath theme_dir;     // current_dir/theme
+     base::FilePath theme_lua;     // theme_dir/hyprland.lua
+     base::FilePath user_lua;      // ~/.config/hypr/looknfeel.lua
++    // Omarchy's window-corner setting (`omarchy hyprland corners`): one of
++    // corners-sharp.lua or corners-rounded.lua in here, or neither for
++    // "follow the theme". Hyprland loads these after the theme and the user's
++    // looknfeel, so they win.
++    base::FilePath toggles_dir;   // ~/.local/state/omarchy/toggles/hypr
+     static Paths ForHome(const base::FilePath& home);
+   };
+ 
+@@ -63,7 +68,8 @@
+   // first windows are built with the theme already known.
+   void LoadNow();
+ 
+-  // Watches the current theme directory and the user's looknfeel.lua. A change
++  // Watches the current theme directory, the user's looknfeel.lua and the
++  // Hyprland toggles directory (window corners). A change
+   // schedules a Reload() after a short quiet period, so one theme switch, which
+   // touches several files, reloads once. Call on the UI thread.
+   void StartWatching();
+@@ -103,6 +109,7 @@
+   // Watchers run on their own sequence. They report back to the UI thread.
+   base::SequenceBound<ThemeWatch> theme_watch_;
+   base::SequenceBound<ThemeWatch> user_watch_;
++  base::SequenceBound<ThemeWatch> toggles_watch_;
+   base::OneShotTimer debounce_timer_;
+ 
+   base::WeakPtrFactory<OmarchyTheme> weak_factory_{this};
+--- a/chrome/browser/omarchy/omarchy_theme.cc
++++ b/chrome/browser/omarchy/omarchy_theme.cc
+@@ -66,6 +66,7 @@
+   paths.theme_dir = paths.current_dir.Append("theme");
+   paths.theme_lua = paths.theme_dir.Append("hyprland.lua");
+   paths.user_lua = home.Append(".config/hypr/looknfeel.lua");
++  paths.toggles_dir = home.Append(".local/state/omarchy/toggles/hypr");
+   return paths;
+ }
+ 
+@@ -132,6 +133,12 @@
+   user_watch_ = base::SequenceBound<ThemeWatch>(
+       watch_task_runner, paths_.user_lua,
+       base::FilePathWatcher::Type::kNonRecursive, on_change);
++  // `omarchy hyprland corners` copies or removes a toggle file in here. The
++  // directory may not exist until the first toggle is set; the watcher picks
++  // it up when it appears.
++  toggles_watch_ = base::SequenceBound<ThemeWatch>(
++      watch_task_runner, paths_.toggles_dir,
++      base::FilePathWatcher::Type::kRecursive, on_change);
+ }
+ 
+ void OmarchyTheme::OnWatchEvent(bool error) {
+@@ -158,10 +165,23 @@
+     }
+   }
+ 
+-  // Hyprland loads the theme file before the user's looknfeel, so the user
+-  // file wins when both set a radius.
+-  if (std::optional<std::string> user = ReadOptional(paths.user_lua)) {
+-    loaded.radius = ParseRoundingLua(*user);
++  // Hyprland's load order is theme, then the user's looknfeel, then the
++  // toggles directory in name order, and the last `rounding` wins. So the
++  // corner toggles are checked first (sharp after rounded, as Hyprland loads
++  // them), then the user file, then the theme.
++  for (const char* toggle : {"corners-sharp.lua", "corners-rounded.lua"}) {
++    if (std::optional<std::string> lua =
++            ReadOptional(paths.toggles_dir.Append(toggle))) {
++      loaded.radius = ParseRoundingLua(*lua);
++      if (loaded.radius) {
++        break;
++      }
++    }
++  }
++  if (!loaded.radius) {
++    if (std::optional<std::string> user = ReadOptional(paths.user_lua)) {
++      loaded.radius = ParseRoundingLua(*user);
++    }
+   }
+   if (!loaded.radius) {
+     if (std::optional<std::string> theme = ReadOptional(paths.theme_lua)) {
+--- a/chrome/browser/omarchy/omarchy_theme_unittest.cc
++++ b/chrome/browser/omarchy/omarchy_theme_unittest.cc
+@@ -115,6 +115,61 @@
+   EXPECT_EQ(theme.radius(), 12);
+ }
+ 
++TEST_F(OmarchyThemeTest, CornerToggleOverridesUserAndTheme) {
++  Write(paths_.theme_lua, "rounding = 6\n");
++  Write(paths_.user_lua, "rounding = 12\n");
++  ASSERT_TRUE(base::CreateDirectory(paths_.toggles_dir));
++  Write(paths_.toggles_dir.Append("corners-sharp.lua"),
++        "hl.config({ decoration = { rounding = 0 } })\n");
++
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++  EXPECT_EQ(theme.radius(), 0);
++
++  // "Rounded" replaces "sharp"; "theme" removes both.
++  ASSERT_TRUE(base::DeleteFile(paths_.toggles_dir.Append("corners-sharp.lua")));
++  Write(paths_.toggles_dir.Append("corners-rounded.lua"),
++        "hl.config({ decoration = { rounding = 6, rounding_power = 3 } })\n");
++  Reload(theme);
++  EXPECT_EQ(theme.radius(), 6);
++
++  ASSERT_TRUE(
++      base::DeleteFile(paths_.toggles_dir.Append("corners-rounded.lua")));
++  Reload(theme);
++  EXPECT_EQ(theme.radius(), 12);
++}
++
++TEST_F(OmarchyThemeTest, SharpToggleWinsWhenBothTogglesExist) {
++  // Hyprland loads the toggles in name order, so sharp is applied last.
++  ASSERT_TRUE(base::CreateDirectory(paths_.toggles_dir));
++  Write(paths_.toggles_dir.Append("corners-rounded.lua"), "rounding = 6\n");
++  Write(paths_.toggles_dir.Append("corners-sharp.lua"), "rounding = 0\n");
++
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++  EXPECT_EQ(theme.radius(), 0);
++}
++
++TEST_F(OmarchyThemeTest, ReloadsWhenCornerToggleChanges) {
++  Write(paths_.theme_dir.Append("colors.toml"), "mode = \"dark\"\n");
++  OmarchyTheme theme(paths_);
++  Reload(theme);
++  theme.StartWatching();
++  task_environment_.RunUntilIdle();
++  ASSERT_EQ(theme.radius(), 0);
++
++  // The toggles directory does not exist until the first toggle is set. As
++  // in ReloadsWhenThemeFileChanges, keep writing until a write lands after
++  // the watch is up.
++  ASSERT_TRUE(base::CreateDirectory(paths_.toggles_dir));
++  int generation = 0;
++  EXPECT_TRUE(base::test::RunUntil([&] {
++    Write(paths_.toggles_dir.Append("corners-rounded.lua"),
++          ("-- " + std::to_string(++generation) + "\nrounding = 6\n").c_str());
++    return theme.radius() == 6;
++  }));
++}
++
+ TEST_F(OmarchyThemeTest, RadiusIsClampedToMaximum) {
+   Write(paths_.user_lua, "rounding = 500\n");
+ 
