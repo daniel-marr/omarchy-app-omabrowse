@@ -1,0 +1,68 @@
+diff -u -r a/chrome/browser/omarchy/omarchy_theme_supplier.cc b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -139,6 +139,9 @@
+     // row, the menu buttons and the context menus all derive from this ID, so
+     // they follow along.
+     mixer[ui::kColorMenuBackground] = {*dark_background_};
++    // The side panel body behind the cards matches the toolbar it hangs from.
++    mixer[kColorSidePanelBackground] = {*dark_background_};
++    mixer[kColorSidePanelContentBackground] = {*dark_background_};
+   }
+   if (foreground_) {
+     // Most icons derive from these, so the whole UI icon set follows the theme.
+diff -u -r a/chrome/browser/ui/views/side_panel/side_panel_header.cc b/chrome/browser/ui/views/side_panel/side_panel_header.cc
+--- a/chrome/browser/ui/views/side_panel/side_panel_header.cc
++++ b/chrome/browser/ui/views/side_panel/side_panel_header.cc
+@@ -6,7 +6,10 @@
+ 
+ #include <memory>
+ 
++#include "chrome/browser/omarchy/omarchy_theme.h"
++#include "chrome/browser/ui/color/chrome_color_id.h"
+ #include "chrome/browser/ui/views/chrome_layout_provider.h"
++#include "chrome/browser/ui/views/helium/frame_corner_radius.h"
+ #include "chrome/browser/ui/views/side_panel/side_panel_header_controller.h"
+ #include "ui/base/metadata/metadata_impl_macros.h"
+ #include "ui/compositor/layer.h"
+@@ -18,6 +21,7 @@
+ #include "ui/views/layout/flex_layout.h"
+ #include "ui/views/layout/flex_layout_types.h"
+ #include "ui/views/layout/layout_types.h"
++#include "ui/views/background.h"
+ #include "ui/views/view.h"
+ #include "ui/views/view_class_properties.h"
+ 
+@@ -90,6 +94,21 @@
+ 
+ SidePanelHeader::~SidePanelHeader() = default;
+ 
++void SidePanelHeader::OnThemeChanged() {
++  views::View::OnThemeChanged();
++  // With an Omarchy theme the header takes the side panel card colour, so it
++  // reads as the top of the panel rather than part of the toolbar. The
++  // corners follow the frame radius, which the theme can change live.
++  if (omarchy::OmarchyTheme::GetInstance()->has_theme()) {
++    const float radius = GetGenericFrameRadius();
++    SetBackground(views::CreateRoundedRectBackground(
++        kColorSidePanelCardBackground,
++        gfx::RoundedCornersF(radius, radius, 0, 0)));
++  } else {
++    SetBackground(nullptr);
++  }
++}
++
+ void SidePanelHeader::Layout(PassKey) {
+   LayoutSuperclass<views::View>(this);
+ 
+diff -u -r a/chrome/browser/ui/views/side_panel/side_panel_header.h b/chrome/browser/ui/views/side_panel/side_panel_header.h
+--- a/chrome/browser/ui/views/side_panel/side_panel_header.h
++++ b/chrome/browser/ui/views/side_panel/side_panel_header.h
+@@ -40,6 +40,7 @@
+   ~SidePanelHeader() override;
+ 
+   void Layout(PassKey) override;
++  void OnThemeChanged() override;
+ 
+   views::ImageView* panel_icon() { return panel_icon_; }
+ 
