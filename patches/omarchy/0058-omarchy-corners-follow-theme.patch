@@ -1,5 +1,5 @@
---- a/chrome/browser/omarchy/omarchy_theme.h	2026-11-02 17:39:15.345827394 +1000
-+++ b/chrome/browser/omarchy/omarchy_theme.h	2026-11-02 17:40:07.611324055 +1000
+--- a/chrome/browser/omarchy/omarchy_theme.h
++++ b/chrome/browser/omarchy/omarchy_theme.h
 @@ -71,15 +71,17 @@
    // True once a colours file has parsed. Until then Helium behaves like stock.
    bool has_theme() const { return has_theme_; }
@@ -47,8 +47,8 @@
  inline int ScaledCornerRadius(int stock) {
    return OmarchyTheme::GetInstance()->corners_squared() ? 0 : stock;
  }
---- a/chrome/browser/omarchy/omarchy_theme.cc	2026-11-02 17:39:15.347798565 +1000
-+++ b/chrome/browser/omarchy/omarchy_theme.cc	2026-11-02 17:40:07.623300756 +1000
+--- a/chrome/browser/omarchy/omarchy_theme.cc
++++ b/chrome/browser/omarchy/omarchy_theme.cc
 @@ -171,11 +171,11 @@
    return loaded;
  }
@@ -64,8 +64,8 @@
    for (Observer& observer : observers_) {
      observer.OnOmarchyThemeChanged();
    }
---- a/chrome/browser/omarchy/omarchy_theme_bridge.cc	2026-11-02 17:39:15.349801500 +1000
-+++ b/chrome/browser/omarchy/omarchy_theme_bridge.cc	2026-11-02 17:40:07.627666776 +1000
+--- a/chrome/browser/omarchy/omarchy_theme_bridge.cc
++++ b/chrome/browser/omarchy/omarchy_theme_bridge.cc
 @@ -36,7 +36,7 @@
    explicit ProfileThemeWatch(Profile* profile) : profile_(profile) {
      profile_observation_.Observe(profile_);
@@ -90,8 +90,8 @@
    }
  
    // Re-applies the palette only if something else replaced it.
---- a/chrome/browser/omarchy/omarchy_theme_unittest.cc	2026-11-02 17:39:15.351817579 +1000
-+++ b/chrome/browser/omarchy/omarchy_theme_unittest.cc	2026-11-02 17:40:07.631614997 +1000
+--- a/chrome/browser/omarchy/omarchy_theme_unittest.cc
++++ b/chrome/browser/omarchy/omarchy_theme_unittest.cc
 @@ -80,6 +80,29 @@
  
    EXPECT_FALSE(theme.has_theme());
@@ -122,8 +122,8 @@
  }
  
  TEST_F(OmarchyThemeTest, UserLooknfeelOverridesThemeRadius) {
---- a/chrome/common/pref_names.h	2026-11-02 17:39:15.354257701 +1000
-+++ b/chrome/common/pref_names.h	2026-11-02 17:40:07.635556862 +1000
+--- a/chrome/common/pref_names.h
++++ b/chrome/common/pref_names.h
 @@ -622,6 +622,12 @@
  // frame.
  inline constexpr char kHeliumRoundedFrame[] = "helium.browser.rounded_frame";
@@ -137,8 +137,8 @@
  // A boolean pref set to true if browser frame surfaces should use native system
  // materials instead of opaque fills.
  inline constexpr char kHeliumNativeFrameMaterials[] =
---- a/chrome/browser/ui/browser_ui_prefs.cc	2026-11-02 17:39:15.356662486 +1000
-+++ b/chrome/browser/ui/browser_ui_prefs.cc	2026-11-02 17:40:07.639850213 +1000
+--- a/chrome/browser/ui/browser_ui_prefs.cc
++++ b/chrome/browser/ui/browser_ui_prefs.cc
 @@ -135,6 +135,7 @@
    registry->RegisterBooleanPref(prefs::kShowZoomIndicator, true);
  
@@ -147,8 +147,8 @@
  
    registry->RegisterBooleanPref(prefs::kHeliumNativeFrameMaterials, false);
  
---- a/chrome/browser/extensions/api/settings_private/prefs_util.cc	2026-11-02 17:39:15.358888433 +1000
-+++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc	2026-11-02 17:40:07.644033091 +1000
+--- a/chrome/browser/extensions/api/settings_private/prefs_util.cc
++++ b/chrome/browser/extensions/api/settings_private/prefs_util.cc
 @@ -326,6 +326,8 @@
        settings_api::PrefType::kBoolean;
    (*s_allowlist)[::prefs::kHeliumRoundedFrame] =
@@ -158,8 +158,8 @@
  
    (*s_allowlist)[::prefs::kShowHomeButton] = settings_api::PrefType::kBoolean;
    (*s_allowlist)[contextual_search::kDriveConsentState] =
---- a/chrome/browser/ui/views/frame/multi_contents_view.cc	2026-11-02 17:39:15.361640467 +1000
-+++ b/chrome/browser/ui/views/frame/multi_contents_view.cc	2026-11-02 17:40:07.647400529 +1000
+--- a/chrome/browser/ui/views/frame/multi_contents_view.cc
++++ b/chrome/browser/ui/views/frame/multi_contents_view.cc
 @@ -912,8 +912,12 @@
    const views::Widget* widget = browser_view_->GetWidget();
    const bool is_fullscreen = widget && widget->IsFullscreen();
@@ -175,8 +175,8 @@
  }
  
  bool MultiContentsView::IsTopChromeAttachedForBorder() const {
---- a/chrome/browser/ui/webui/theme_source.cc	2026-11-02 17:39:15.363845763 +1000
-+++ b/chrome/browser/ui/webui/theme_source.cc	2026-11-02 17:40:07.651722044 +1000
+--- a/chrome/browser/ui/webui/theme_source.cc
++++ b/chrome/browser/ui/webui/theme_source.cc
 @@ -493,6 +493,12 @@
      // Settings components multiply their fixed radii by this, so they go square.
      base::StrAppend(&css_string, {"--omarchy-corner-on:0 !important;"});
@@ -190,8 +190,8 @@
  
    css_string.push_back('}');
    return css_string;
---- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts	2026-11-02 17:39:15.366866329 +1000
-+++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts	2026-11-02 17:40:07.655308286 +1000
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.html.ts
 @@ -66,10 +66,19 @@
      <div class="hr" ?hidden="${!this.showHr_(
          this.pageVisibility_.setTheme, this.pageVisibility_.homeButton)}">
@@ -216,8 +216,8 @@
      <settings-toggle-button class="hr"
          ?hidden="${!this.showNativeFrameMaterialsOption_}"
          pref-key="helium.browser.native_frame_materials"
---- a/chrome/browser/resources/settings/appearance_page/appearance_page.css	2026-11-02 17:39:15.369287387 +1000
-+++ b/chrome/browser/resources/settings/appearance_page/appearance_page.css	2026-11-02 17:40:07.659316475 +1000
+--- a/chrome/browser/resources/settings/appearance_page/appearance_page.css
++++ b/chrome/browser/resources/settings/appearance_page/appearance_page.css
 @@ -11,6 +11,16 @@
   * #include=cr-shared-style-lit settings-shared-lit md-select-lit
   * #css_wrapper_metadata_end */
@@ -235,8 +235,8 @@
  /* Lines up with cr-input. */
  #custom-input {
    /* (cr-input line-height + cr-input top/bottom padding) / 2 -
---- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc	2026-11-02 17:39:15.371711019 +1000
-+++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc	2026-11-02 17:40:07.663620337 +1000
+--- a/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
++++ b/chrome/browser/ui/webui/settings/settings_localized_strings_provider.cc
 @@ -608,6 +608,9 @@
        {"openNewTabNextToActive", IDS_SETTINGS_NEW_TAB_NEXT_TO_ACTIVE_BUTTON},
        {"cycleTabsInMRUOrder", IDS_SETTINGS_CYCLE_TABS_IN_MRU_ORDER},
@@ -247,8 +247,8 @@
        {"nativeFrameMaterials", IDS_SETTINGS_NATIVE_FRAME_MATERIALS},
        {"nativeFrameMaterialsDescription",
         IDS_SETTINGS_NATIVE_FRAME_MATERIALS_DESCRIPTION},
---- a/chrome/app/settings_strings.grdp	2026-11-02 17:39:15.374111051 +1000
-+++ b/chrome/app/settings_strings.grdp	2026-11-02 17:40:07.667265208 +1000
+--- a/chrome/app/settings_strings.grdp
++++ b/chrome/app/settings_strings.grdp
 @@ -279,6 +279,12 @@
      <message name="IDS_SETTINGS_ROUNDED_FRAME" desc="Label for the single toggle which makes all corners rounded or square: the web contents frame, tabs, the search box and the rest of the UI.">
        Rounded corners
