@@ -27,6 +27,7 @@ helium_version
 helium_resources
 "$_root_dir/scripts/apply-branding.sh" "$_src_dir"
 "$_root_dir/scripts/apply-resources.sh" "$_src_dir"
+apply_omarchy_patches
 write_gn_args
 gn_gen
 build

@@ -78,6 +78,16 @@ apply_patches() {
     fi
 }
 
+# The omarchy series is applied last: its patches were written against the tree
+# after Helium's name substitution, translations and resource replacement, so
+# they expect "Helium" strings and the Helium resource files to be in place.
+apply_omarchy_patches() {
+    if [ ! -f "${_src_dir}/.omarchy-patched.stamp" ]; then
+        "${_main_repo}/utils/patches.py" apply "${_src_dir}" "${_root_dir}/patches/omarchy"
+        touch "${_src_dir}/.omarchy-patched.stamp"
+    fi
+}
+
 apply_domsub() {
     if [ ! -f "${_src_dir}/.domsub.stamp" ]; then
         "${_main_repo}/utils/domain_substitution.py" apply -r "${_main_repo}/domain_regex.list" -f "${_main_repo}/domain_substitution.list" "${_src_dir}"
