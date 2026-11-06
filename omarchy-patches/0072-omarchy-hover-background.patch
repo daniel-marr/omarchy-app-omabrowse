@@ -1,0 +1,27 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -137,6 +137,24 @@
+     mixer[kColorTabSearchCardBackground] = {*background_};
+     mixer[kColorProfileMenuIdentityInfoBackground] = {*background_};
+     mixer[kColorDownloadBubbleInfoBackground] = {*background_};
++    // Hover and selection highlights take the page surface too, so a hovered
++    // row in a menu, a bubble, the omnibox dropdown, the sidebar or a WebUI
++    // page lifts to the same colour everywhere. The two sys hover IDs are
++    // translucent by default and feed most views ink drops and the WebUI
++    // --cr-hover-background-color variable (Settings menus and lists).
++    mixer[ui::kColorMenuSelectionBackground] = {*background_};
++    mixer[ui::kColorMenuItemBackgroundHighlighted] = {*background_};
++    mixer[ui::kColorMenuItemBackgroundSelected] = {*background_};
++    mixer[ui::kColorMenuButtonBackgroundSelected] = {*background_};
++    mixer[ui::kColorSysStateHover] = {*background_};
++    mixer[ui::kColorSysStateHoverOnSubtle] = {*background_};
++    mixer[kColorHoverButtonBackgroundHovered] = {*background_};
++    mixer[kColorToolbarInkDropHover] = {*background_};
++    mixer[kColorDownloadBubbleRowHover] = {*background_};
++    mixer[kColorTabBackgroundInactiveHoverFrameActive] = {*background_};
++    mixer[kColorTabBackgroundInactiveHoverFrameInactive] = {*background_};
++    mixer[kColorOmniboxResultsBackgroundHovered] = {*background_};
++    mixer[kColorOmniboxResultsBackgroundSelected] = {*background_};
+   }
+   if (lighter_background_) {
+     // The side panel search field matches the omnibox.
