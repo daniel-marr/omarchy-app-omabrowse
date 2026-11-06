@@ -1,0 +1,40 @@
+--- a/chrome/browser/omarchy/omarchy_theme_supplier.cc
++++ b/chrome/browser/omarchy/omarchy_theme_supplier.cc
+@@ -129,6 +129,14 @@
+     // a page sits beside the frame.
+     mixer[kColorSidePanelCardBackground] = {*background_};
+     mixer[kColorSidePanelDialogBackground] = {*background_};
++    // The "No access needed" box in the Extensions popup is a card inside a
++    // bubble, so it takes the card surface too.
++    mixer[kColorExtensionsMenuContainerBackground] = {*background_};
++    // Cards inside other popups: tab search results, the profile menu's
++    // identity block and the download bubble's info box.
++    mixer[kColorTabSearchCardBackground] = {*background_};
++    mixer[kColorProfileMenuIdentityInfoBackground] = {*background_};
++    mixer[kColorDownloadBubbleInfoBackground] = {*background_};
+   }
+   if (lighter_background_) {
+     // The side panel search field matches the omnibox.
+@@ -139,6 +147,22 @@
+     // row, the menu buttons and the context menus all derive from this ID, so
+     // they follow along.
+     mixer[ui::kColorMenuBackground] = {*dark_background_};
++    // Bubbles (Extensions, page info, downloads, profile) and dialogs are
++    // the other popups that hang off the toolbar, and take the same colour.
++    mixer[ui::kColorBubbleBackground] = {*dark_background_};
++    mixer[ui::kColorDialogBackground] = {*dark_background_};
++    // Popups with their own background ID rather than the bubble one: the
++    // tab search bubble, the profile menu, the omnibox results dropdown, the
++    // find bar, tab hover cards, tooltips and the status bubble.
++    mixer[kColorTabSearchBackground] = {*dark_background_};
++    mixer[kColorTabSearchFooterBackground] = {*dark_background_};
++    mixer[kColorProfileMenuBackground] = {*dark_background_};
++    mixer[kColorOmniboxResultsBackground] = {*dark_background_};
++    mixer[kColorFindBarBackground] = {*dark_background_};
++    mixer[kColorTabHoverCardBackground] = {*dark_background_};
++    mixer[ui::kColorTooltipBackground] = {*dark_background_};
++    mixer[kColorStatusBubbleBackgroundFrameActive] = {*dark_background_};
++    mixer[kColorStatusBubbleBackgroundFrameInactive] = {*dark_background_};
+     // The side panel body behind the cards matches the toolbar it hangs from.
+     mixer[kColorSidePanelBackground] = {*dark_background_};
+     mixer[kColorSidePanelContentBackground] = {*dark_background_};
