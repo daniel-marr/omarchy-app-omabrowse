@@ -9,7 +9,7 @@ Findings for the Omarchy-native Helium patch set. Paths are in the pinned Chromi
 
 ## Build environment gotcha
 - `/mnt/data` is NTFS (`ntfs3`, `windows_names`). Chromium's sysroot contains filenames with `\`, which NTFS rejects, so unpacking fails there.
-- Fix: the build tree lives on btrfs at `/home/dan/omabrowse-build`, and `helium-linux/build` is a symlink to it. The git repo can stay on NTFS.
+- Fix: the build tree lives on a btrfs volume outside the repo (`~/omabrowse-build`), and `helium-linux/build` is a symlink to it. The git repo can stay on NTFS.
 
 ## Findings from the pinned source
 

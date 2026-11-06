@@ -5,7 +5,7 @@
 # Usage: install-local.sh [build-out-dir]
 set -euo pipefail
 
-out=${1:-/home/dan/omabrowse-build/src/out/Default}
+out=${1:-$HOME/omabrowse-build/src/out/Default}
 prefix="$HOME/.local/opt/omabrowse"
 bin_dir="$HOME/.local/bin"
 apps_dir="$HOME/.local/share/applications"
