@@ -8,7 +8,7 @@
  #include "chrome/browser/ui/tabs/tab_style.h"
  
  #include <array>
-@@ -100,11 +101,11 @@
+@@ -100,10 +101,13 @@
  }
  
  int TabStyle::GetTopCornerRadius() const {
@@ -17,8 +17,9 @@
  }
  
  int TabStyle::GetBottomCornerRadius() const {
--  return 8;
-+  return omarchy::ScaledCornerRadius(8);
++  // Geometry, not paint: the contents insets, the tab overlap and the strip's
++  // leading margin all derive from this, so it keeps the stock value when the
++  // Omarchy theme squares the corners. The painted shape uses the top radius.
+   return 8;
  }
  
- int TabStyle::GetTabOverlap() const {
